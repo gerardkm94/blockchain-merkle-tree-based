@@ -5,12 +5,12 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Blockchain_api",
+            "name": "Python: Flask",
             "type": "python",
             "request": "launch",
-			"stopOnEntry": false,
-			"program": "${workspaceRoot}/app.py",
-			"justMyCode": false
+            "stopOnEntry": false,
+            "program": "${workspaceRoot}/app.py",
+            "justMyCode": false
         }
     ]
 }

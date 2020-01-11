@@ -8,7 +8,7 @@
     ],
     "editor.formatOnSave": true,
     "autoDocstring.docstringFormat": "google",
-    "python.formatting.provider": "none",
+    "python.formatting.provider": "autopep8",
     "trailing-spaces.trimOnSave": true,
     "python.envFile": "${workspaceFolder}/.env"
 }

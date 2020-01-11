@@ -15,7 +15,8 @@ class Blockchain:
 
     def get_genesis_block(self):
         genesis_block = Block(0, [], time.time(), "0")
-        genesis_block.hash = Hashing.compute_sha256_hash(genesis_block.get_block)
+        genesis_block.hash = Hashing.compute_sha256_hash(
+            genesis_block.get_block)
         self.chain.append(genesis_block)
 
     @staticmethod
