@@ -1,3 +1,14 @@
 {
-    "python.pythonPath": "venv\\Scripts\\python.exe"
+    "python.pythonPath": "venv\\Scripts\\python.exe",
+    "python.linting.pylintEnabled": true,
+    "python.linting.enabled": true,
+    "python.linting.lintOnSave": true,
+    "editor.rulers": [
+        100
+    ],
+    "editor.formatOnSave": true,
+    "autoDocstring.docstringFormat": "google",
+    "python.formatting.provider": "none",
+    "trailing-spaces.trimOnSave": true,
+    "python.envFile": "${workspaceFolder}/.env"
 }
