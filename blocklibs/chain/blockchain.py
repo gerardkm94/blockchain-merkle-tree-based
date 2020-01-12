@@ -46,7 +46,7 @@ class Blockchain:
         if previous_hash != block.previous_hash:
             return False
 
-        if not self.is_valid_proof(block, proof_of_work):
+        if not self.is_valid_proof_of_work(block, proof_of_work):
             return False
 
         block.hash = proof_of_work
@@ -67,7 +67,7 @@ class Blockchain:
         last_block = self.last_block
         new_block = Block(index=last_block.index,
                           transactions=self.unconfirmed_transactions,
-                          timestamps=time.time(),
+                          timestamp=time.time(),
                           previous_hash=last_block.hash)
 
         proof_of_work = self.proof_of_work(new_block)

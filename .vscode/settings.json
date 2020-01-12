@@ -10,5 +10,4 @@
     "autoDocstring.docstringFormat": "google",
     "python.formatting.provider": "autopep8",
     "trailing-spaces.trimOnSave": true,
-    "python.envFile": "${workspaceFolder}/.env"
 }

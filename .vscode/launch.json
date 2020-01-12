@@ -8,9 +8,17 @@
             "name": "Python: Flask",
             "type": "python",
             "request": "launch",
-            "stopOnEntry": false,
-            "program": "${workspaceRoot}/app.py",
-            "justMyCode": false
+            "module": "flask",
+            "env": {
+                "FLASK_APP": "app.py",
+                "FLASK_ENV": "development",
+                "FLASK_DEBUG": "1",
+            },
+            "args": [
+                "run",
+                "--no-debugger",
+            ],
+            "justMyCode": false,
         }
     ]
 }

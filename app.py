@@ -10,6 +10,12 @@ app = Flask(__name__)
 api = Api(app)
 bc = Blockchain()
 
+api_transactions = api.namespace(
+    'Transactions', description='Transactions operations')
+api_operations = api.namespace(
+    'Operations', description='Computational operations')
+api_nodes = api.namespace('Nodes', description='Nodes operations')
+
 # Data Schemas definition
 resource_fields = api.model('Transaction',  {
     'author': fields.String,
@@ -18,13 +24,19 @@ resource_fields = api.model('Transaction',  {
 )
 
 
-@api.route('/transaction')
-class new_transaction(Resource):
+@api_transactions.route('/transactions')
+class Transactions(Resource):
 
-    @api.expect(resource_fields)
-    @api.response(201, "Succes")
+    def get(self):
+        """
+        Retrieve pending transactions
+        """
+        return json.dumps(bc.unconfirmed_transactions)
+
+    @api_transactions.expect(resource_fields)
+    @api_transactions.response(201, "Succes")
     def post(self):
-        """ 
+        """
         Creates a new transaction
         """
         incoming_transaction = request.get_json()
@@ -32,36 +44,39 @@ class new_transaction(Resource):
 
         for mandatory_field in required_data:
             if not incoming_transaction.get(mandatory_field):
-                return "Incoming transaction is invalid", 404
+                return "Incoming transaction is invalid ", 404
 
         incoming_transaction["timestamp"] = time.time()
         bc.add_new_transaction(incoming_transaction)
-        return "Transaction added, pending to validate", 201
+        return "Transaction added, pending to validate ", 201
 
 
-"""
-# equivalent to chain
-@app.route('/node', methods=['GET'])
-def get_node():
-    node_data = []
-    for block in bc.chain:
-        node_data.append(block.get_block)
-    return json.dumps({"length": len(node_data),
-                       "chain": node_data})
+@api_operations.route('/unconfirmed_transactions')
+class UnconfirmedTransactions(Resource):
+
+    def get(self):
+        """
+        Mine unconfirmed transactions
+        """
+        result = bc.compute_transactions
+        if not bc:
+            return "not transactions to mine"
+        return "Block #{} mined".format(result)
 
 
-@app.route('/mine', methods=['GET'])
-def mine_unconfirmed_transactions():
-    result = bc.compute_transactions
-    if not bc:
-        return "not transactions to mine"
-    return "Block #{} mined".format(result)
+@api_nodes.route('/node')
+class Node(Resource):
 
+    def get(self):
+        """
+        Get a node
+        """
+        node_data = []
+        for block in bc.chain:
+            node_data.append(block.get_block)
+        return json.dumps({"length": len(node_data),
+                           "chain": node_data})
 
-@app.route('/pending_tx')
-def get_pending_tx():
-    return json.dumps(bc.unconfirmed_transactions)
-"""
 
 # Since is development server, we can use app.run for instance, waitress.
 # https://flask.palletsprojects.com/en/1.1.x/tutorial/deploy/
