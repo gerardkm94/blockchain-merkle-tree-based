@@ -16,7 +16,6 @@
             },
             "args": [
                 "run",
-                "--no-debugger",
             ],
             "justMyCode": false,
         }
