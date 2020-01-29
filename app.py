@@ -77,6 +77,18 @@ class Node(Resource):
         return json.dumps({"length": len(node_data),
                            "chain": node_data})
 
+    def post(self):
+        """
+        Post a new node to the network
+        """
+        nodes = request.get_json()
+        if not nodes:
+            return "Nodes aren't valid", 400
+        for node in nodes:
+            bc.peers.add(node)
+
+        return "Node added, welcome!", 201
+
 
 # Since is development server, we can use app.run for instance, waitress.
 # https://flask.palletsprojects.com/en/1.1.x/tutorial/deploy/

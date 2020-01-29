@@ -12,6 +12,7 @@ class Blockchain:
         self.unconfirmed_transactions = []
         self.chain = []
         self.get_genesis_block()
+        self.peers = set()
 
     def get_genesis_block(self):
         genesis_block = Block(0, [], time.time(), "0")
