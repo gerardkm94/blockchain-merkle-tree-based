@@ -5,6 +5,8 @@ from flask import Flask, request
 from flask_restplus import Resource, Api, reqparse, fields
 
 from blocklibs.chain.blockchain import Blockchain
+from blocklibs.chain.node import Node
+
 
 app = Flask(__name__)
 api = Api(app)
@@ -70,13 +72,13 @@ class UnconfirmedTransactions(Resource):
 
 
 @api_nodes.route('/node')
-class Node(Resource):
+class Nodes(Resource):
 
     def get(self):
         """
         Get the chain of a node
         """
-        return block_chain.get_chain
+        return block_chain.get_local_chain
 
     @api_transactions.expect(node_resource_fields)
     @api_transactions.response(201, "Success")
@@ -84,13 +86,18 @@ class Node(Resource):
         """
         Post a new node to the network
         """
-        node = request.get_json()["node_address"]
-        if not node:
+        node_address = request.get_json()["node_address"]
+        node_name = request.get_son()["node_name"]
+        if not node_address:
             return "Nodes aren't specified", 400
 
-        block_chain.peers.add(node)
+        new_node = Node(node_address, node_name)
 
-        return block_chain.get_chain
+        block_chain.add_new_node(new_node)
+
+        remote_chain = new_node.get_remote_chain()
+
+        return remote_chain
 
 
 # Since is development server, we can use app.run for instance, waitress.

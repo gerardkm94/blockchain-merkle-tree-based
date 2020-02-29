@@ -7,7 +7,7 @@ from blocklibs.crypto.hashing import Hashing
 
 class Blockchain:
     """
-    Class to handle blockchain structure and its methods. This class will handle all 
+    Class to handle blockchain structure and its methods. This class will handle all
     the structured data regarding a Blockchain instance.
 
     This class should be instantiated as soon as the node is set up since it will be
@@ -15,7 +15,7 @@ class Blockchain:
 
     Parameters:
     # TODO Explain better.
-    difficulty (int): Difficulty level of the blockchain. 
+    difficulty (int): Difficulty level of the blockchain.
     """
 
     def __init__(self):
@@ -24,12 +24,12 @@ class Blockchain:
 
         unconfirmed_transactions (list): Transactions stored, but pending to confirm.
         chain (list): List of blocks (Block) objects, conforming the whole chain.
-        peers (set): Contains all the peers that are contributing to the blockchain.
+        nodes (set): Contains all the nodes that are contributing to the blockchain.
         """
         self._difficulty = 2
         self._unconfirmed_transactions = []
         self._chain = []
-        self._peers = set()
+        self._nodes = set()
         self.get_genesis_block()
 
     def get_genesis_block(self):
@@ -79,7 +79,7 @@ class Blockchain:
 
     def compute_transactions(self):
         """
-        Add pending transactions to the blockchain
+        Add unconfirmed transactions to the blockchain
         """
         if not self._unconfirmed_transactions:
             print("Not transactions to add")
@@ -96,18 +96,57 @@ class Blockchain:
         self.unconfirmed_transactions = []
         return new_block.index
 
+    def consensus(self):
+        """
+        Consensus Algorithm. If a longer chain is found, it will be replaced with it.
+        """
+
+        longest_chain = None
+        current_len = self.get_chain_len
+
+        for node in self._nodes:
+            chain_len, chain = node.get_remote_chain()
+
+            if chain_len > current_len:
+                current_len = chain_len
+                longest_chain = chain
+
+        if longest_chain:
+            self._chain = longest_chain
+            return True
+
+        return False
+
     @property
-    def get_chain(self):
+    def get_local_chain(self):
         """
         Property to get the whole blockchain of this node
         """
-        node_data = [block.get_block for block in self.chain]
+        node_data = [block.get_block for block in self._chain]
         return json.dumps({"length": len(node_data),
                            "chain": node_data})
+
+    @property
+    def get_chain_len(self):
+        """
+        Property to get the len of the chain
+        """
+        return len(self._chain)
 
     @property
     def last_block(self):
         """
         Property to get the last block of the blockchain 
         """
-        return self.chain[-1]
+        return self._chain[-1]
+
+    @property
+    def add_new_node(self, node):
+        """
+        Add a new node to the chain
+        """
+        is_valid_node = True
+        if is_valid_node:
+            self._nodes.add(node)
+        else:
+            raise "Node is not a Node instance"
