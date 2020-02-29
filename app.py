@@ -8,7 +8,7 @@ from blocklibs.chain.blockchain import Blockchain
 
 app = Flask(__name__)
 api = Api(app)
-bc = Blockchain()
+block_chain = Blockchain()
 
 api_transactions = api.namespace(
     'Transactions', description='Transactions operations')
@@ -16,10 +16,15 @@ api_operations = api.namespace(
     'Operations', description='Computational operations')
 api_nodes = api.namespace('Nodes', description='Nodes operations')
 
-# Data Schemas definition
-resource_fields = api.model('Transaction',  {
+# Data Schemas definition Move to its package
+transaction_resource_fields = api.model('Transaction',  {
     'author': fields.String,
     'content': fields.String,
+},
+)
+
+node_resource_fields = api.model('Node',  {
+    'node_address': fields.Url,
 },
 )
 
@@ -31,9 +36,9 @@ class Transactions(Resource):
         """
         Retrieve pending transactions
         """
-        return json.dumps(bc.unconfirmed_transactions)
+        return json.dumps(block_chain.unconfirmed_transactions)
 
-    @api_transactions.expect(resource_fields)
+    @api_transactions.expect(transaction_resource_fields)
     @api_transactions.response(201, "Succes")
     def post(self):
         """
@@ -47,7 +52,7 @@ class Transactions(Resource):
                 return "Incoming transaction is invalid ", 404
 
         incoming_transaction["timestamp"] = time.time()
-        bc.add_new_transaction(incoming_transaction)
+        block_chain.add_new_transaction(incoming_transaction)
         return "Transaction added, pending to validate ", 201
 
 
@@ -58,8 +63,8 @@ class UnconfirmedTransactions(Resource):
         """
         Mine unconfirmed transactions
         """
-        result = bc.compute_transactions
-        if not bc:
+        result = block_chain.compute_transactions
+        if not block_chain:
             return "not transactions to mine"
         return "Block #{} mined".format(result)
 
@@ -69,29 +74,27 @@ class Node(Resource):
 
     def get(self):
         """
-        Get a node
+        Get the chain of a node
         """
-        node_data = []
-        for block in bc.chain:
-            node_data.append(block.get_block)
-        return json.dumps({"length": len(node_data),
-                           "chain": node_data})
+        return block_chain.get_chain
 
+    @api_transactions.expect(node_resource_fields)
+    @api_transactions.response(201, "Success")
     def post(self):
         """
         Post a new node to the network
         """
-        nodes = request.get_json()
-        if not nodes:
-            return "Nodes aren't valid", 400
-        for node in nodes:
-            bc.peers.add(node)
+        node = request.get_json()["node_address"]
+        if not node:
+            return "Nodes aren't specified", 400
 
-        return "Node added, welcome!", 201
+        block_chain.peers.add(node)
+
+        return block_chain.get_chain
 
 
 # Since is development server, we can use app.run for instance, waitress.
 # https://flask.palletsprojects.com/en/1.1.x/tutorial/deploy/
 # It works wen is run with python instead of flask run
-if __name__ == '__main__':
-    app.run(debug=True, port=8000)
+# if __name__ == '__main__':
+#     app.run(debug=True, port=8000)

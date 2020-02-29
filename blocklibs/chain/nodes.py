@@ -4,9 +4,9 @@ import json
 
 class Nodes():
 
-    def __init__(self, blockchain, peers):
+    def __init__(self, blockchain):
         self.blockchain = blockchain
-        self.peers = peers
+        self.peers = set()
 
     def consensus(self):
         """
