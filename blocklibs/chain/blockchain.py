@@ -1,40 +1,61 @@
 import time
+import json
+
 from blocklibs.chain.block import Block
 from blocklibs.crypto.hashing import Hashing
 
 
 class Blockchain:
+    """
+    Class to handle blockchain structure and its methods. This class will handle all
+    the structured data regarding a Blockchain instance.
 
-    difficulty = 2
+    This class should be instantiated as soon as the node is set up since it will be
+    the core of the applications, storing and managing all the blockchain operations.
+
+    Parameters:
+    # TODO Explain better.
+    difficulty (int): Difficulty level of the blockchain.
+    """
 
     def __init__(self):
+        """
+        Parameters:
 
-        self.unconfirmed_transactions = []
-        self.chain = []
+        unconfirmed_transactions (list): Transactions stored, but pending to confirm.
+        chain (list): List of blocks (Block) objects, conforming the whole chain.
+        nodes (set): Contains all the nodes that are contributing to the blockchain.
+        """
+        self._difficulty = 2
+        self._unconfirmed_transactions = []
+        self._chain = []
+        self._nodes = set()
         self.get_genesis_block()
 
     def get_genesis_block(self):
+        """
+        This method creates a genesis block (First block to be stored into the chain)
+        and appends it into the block chain.
+        """
         genesis_block = Block(0, [], time.time(), "0")
         genesis_block.hash = Hashing.compute_sha256_hash(
             genesis_block.get_block)
-        self.chain.append(genesis_block)
+        self._chain.append(genesis_block)
 
-    @staticmethod
-    def proof_of_work(block):
+    def proof_of_work(self, block):
 
         block.nonce = 0
 
         hashed_block = Hashing.compute_sha256_hash(block)
-        while not hashed_block.startswith('0' * Blockchain.difficulty):
+        while not hashed_block.startswith('0' * self._difficulty):
             block.nonce += 1
             hashed_block = Hashing.compute_sha256_hash(block)
 
         return hashed_block
 
-    @staticmethod
-    def is_valid_proof_of_work(block, block_hash):
+    def is_valid_proof_of_work(self, block, block_hash):
 
-        return (block_hash.startswith('0' * Blockchain.difficulty)
+        return (block_hash.startswith('0' * self._difficulty)
                 and block_hash == Hashing.compute_sha256_hash(block))
 
     def add_block(self, block, proof_of_work):
@@ -50,7 +71,7 @@ class Blockchain:
             return False
 
         block.hash = proof_of_work
-        self.chain.append(block)
+        self._chain.append(block)
         return True
 
     def add_new_transaction(self, transaction):
@@ -58,15 +79,15 @@ class Blockchain:
 
     def compute_transactions(self):
         """
-        Add pending transactions to the blockchain
+        Add unconfirmed transactions to the blockchain
         """
-        if not self.unconfirmed_transactions:
+        if not self._unconfirmed_transactions:
             print("Not transactions to add")
             return False
 
         last_block = self.last_block
         new_block = Block(index=last_block.index,
-                          transactions=self.unconfirmed_transactions,
+                          transactions=self._unconfirmed_transactions,
                           timestamp=time.time(),
                           previous_hash=last_block.hash)
 
@@ -75,6 +96,57 @@ class Blockchain:
         self.unconfirmed_transactions = []
         return new_block.index
 
+    def consensus(self):
+        """
+        Consensus Algorithm. If a longer chain is found, it will be replaced with it.
+        """
+
+        longest_chain = None
+        current_len = self.get_chain_len
+
+        for node in self._nodes:
+            chain_len, chain = node.get_remote_chain()
+
+            if chain_len > current_len:
+                current_len = chain_len
+                longest_chain = chain
+
+        if longest_chain:
+            self._chain = longest_chain
+            return True
+
+        return False
+
+    @property
+    def get_local_chain(self):
+        """
+        Property to get the whole blockchain of this node
+        """
+        node_data = [block.get_block for block in self._chain]
+        return json.dumps({"length": len(node_data),
+                           "chain": node_data})
+
+    @property
+    def get_chain_len(self):
+        """
+        Property to get the len of the chain
+        """
+        return len(self._chain)
+
     @property
     def last_block(self):
-        return self.chain[-1]
+        """
+        Property to get the last block of the blockchain 
+        """
+        return self._chain[-1]
+
+    @property
+    def add_new_node(self, node):
+        """
+        Add a new node to the chain
+        """
+        is_valid_node = True
+        if is_valid_node:
+            self._nodes.add(node)
+        else:
+            raise "Node is not a Node instance"
