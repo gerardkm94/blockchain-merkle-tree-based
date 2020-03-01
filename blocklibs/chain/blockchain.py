@@ -96,8 +96,7 @@ class Blockchain:
         self.unconfirmed_transactions = []
         return new_block.index
 
-    @classmethod
-    def check_chain_validity(cls, chain):
+    def check_chain_validity(self, chain):
         """
         A helper method to check if the blockchain is valid.            
         """
@@ -110,7 +109,7 @@ class Blockchain:
             # remove has attribute
             delattr(block, "hash")
 
-            if not cls.is_valid_proof_of_work(block=block, block_hash=block.hash) or \
+            if not self.is_valid_proof_of_work(block=block, block_hash=block.hash) or \
                     previous_hash != block.previous_hash:
                 result = False
                 break
@@ -132,7 +131,7 @@ class Blockchain:
             chain_len = remote_chain.get("length")
             chain_data = remote_chain.get("chain")
 
-            if chain_len > current_len:
+            if chain_len > current_len and self.check_chain_validity(chain_data):
                 current_len = chain_len
                 longest_chain = chain_data
 
