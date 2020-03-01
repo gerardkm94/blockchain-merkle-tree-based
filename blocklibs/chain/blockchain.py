@@ -96,6 +96,29 @@ class Blockchain:
         self.unconfirmed_transactions = []
         return new_block.index
 
+    @classmethod
+    def check_chain_validity(cls, chain):
+        """
+        A helper method to check if the blockchain is valid.            
+        """
+        result = True
+        previous_hash = "0"
+
+        # Iterate through every block
+        for block in chain:
+            block_hash = block.hash
+            # remove has attribute
+            delattr(block, "hash")
+
+            if not cls.is_valid_proof_of_work(block=block, block_hash=block.hash) or \
+                    previous_hash != block.previous_hash:
+                result = False
+                break
+
+            block.hash, previous_hash = block_hash, block_hash
+
+        return result
+
     def consensus(self):
         """
         Consensus Algorithm. If a longer chain is found, it will be replaced with it.
@@ -105,14 +128,17 @@ class Blockchain:
         current_len = self.get_chain_len
 
         for node in self._nodes:
-            chain_len, chain = node.get_remote_chain()
+            remote_chain = node.get_remote_chain()
+            chain_len = remote_chain.get("length")
+            chain_data = remote_chain.get("chain")
 
             if chain_len > current_len:
                 current_len = chain_len
-                longest_chain = chain
+                longest_chain = chain_data
 
         if longest_chain:
             self._chain = longest_chain
+            print("Consensus achieved, longer chain found")
             return True
 
         return False
@@ -123,7 +149,7 @@ class Blockchain:
         Property to get the whole blockchain of this node
         """
         node_data = [block.get_block for block in self._chain]
-        return {"length": len(node_data), "chain": node_data}
+        return {"length": len(node_data), "chain": node_data, "nodes": self._nodes}
 
     @property
     def get_chain_len(self):
@@ -139,6 +165,21 @@ class Blockchain:
         """
         return self._chain[-1]
 
+    @property
+    def set_new_chain(self, received_chain):
+        """
+        Property to set a new chain when a longer one is received
+        """
+        self._chain = received_chain
+
+    @property
+    def update_nodes(self, received_nodes):
+        """
+        Property to sync the nodes within remote origins
+        """
+        self._nodes.update(received_nodes)
+
+    @property
     def add_new_node(self, node):
         """
         Add a new node to the chain

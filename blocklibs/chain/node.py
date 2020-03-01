@@ -1,8 +1,12 @@
 
 
-import json
 import datetime
+import json
+from http import HTTPStatus as code
+
 import requests
+
+from blocklibs.chain.errors import HttpErrors
 
 
 class Node():
@@ -20,7 +24,11 @@ class Node():
         """
         Get the whole block_chain from a remote.
         """
-        response = requests.get(
-            'http://{}/Nodes/chain'.format(self._node_address))
+        try:
+            response = requests.get(
+                'http://{}/Nodes/chain'.format(self._node_address))
+        except ConnectionError:
+            message = "Can't get remote chain"
+            raise HttpErrors(message)
 
         return response.json()

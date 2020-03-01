@@ -7,9 +7,10 @@ from flask_restplus import Api, Resource, fields, reqparse
 from requests.exceptions import ConnectionError
 
 from blocklibs.chain.blockchain import Blockchain
-from blocklibs.chain.errors import ApiResponse, BlockChainError
+from blocklibs.chain.errors import ApiResponse, BlockChainError, HttpErrors
 from blocklibs.chain.node import Node
 from blocklibs.chain.transaction import Transaction
+from blocklibs.chain.utils import Utils
 
 app = Flask(__name__)
 api = Api(app)
@@ -91,31 +92,57 @@ class Chain(Resource):
         return block_chain.get_local_chain, 200
 
 
+@staticmethod
+def create_node_from_response(request):
+    try:
+        node_address = request.get_json()["node_address"]
+        node_name = request.get_json()["node_name"]
+    except:
+        message = "No node_address or name was provided"
+        return api_response.raise_response(message, code.BAD_REQUEST)
+
+    new_node = Node(node_address, node_name)
+    return new_node
+
+
 @api_nodes.route('/node')
 class Nodes(Resource):
 
-    @api_transactions.expect(node_resource_fields)
+    @api_nodes.expect(node_resource_fields)
     def post(self):
         """
         Post a new node to the network
         """
-        try:
-            node_address = request.get_json()["node_address"]
-            node_name = request.get_json()["node_name"]
-        except:
-            message = "No node_address or name was provided"
-            return api_response.raise_response(message, code.BAD_REQUEST)
-
-        new_node = Node(node_address, node_name)
+        new_node = create_node_from_response(request)
         block_chain.add_new_node(node=new_node)
-
         try:
             remote_chain = new_node.get_remote_chain()
-        except ConnectionError:
-            message = "Can't get remote chain"
+        except HttpErrors:
+            message = "Can't request to the node"
             return api_response.raise_response(message, code.REQUEST_TIMEOUT)
 
         return remote_chain, 200
+
+
+@api_nodes.route('/register_node')
+class RegisterNode(Resource):
+    @api_nodes.expect(node_resource_fields)
+    def post(self):
+        """
+        Register a new node to the network
+        """
+        new_node = create_node_from_response(request)
+        try:
+            remote_chain = new_node.get_remote_chain()
+        except HttpErrors:
+            message = "Can't request to the node"
+            return api_response.raise_response(message, code.REQUEST_TIMEOUT)
+
+        received_block_chain = Utils().create_chain(remote_chain.get("chain"))
+        block_chain.set_new_chain(received_block_chain)
+        block_chain.update_nodes(remote_chain.get("nodes"))
+
+        return api_response.raise_response("Registration successful", 201)
 
 
 # Since is development server, we can use app.run for instance, waitress.
