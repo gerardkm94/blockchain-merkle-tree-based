@@ -1,0 +1,6 @@
+-- 01/03 
+He añadido la mayoría de endpoints, falta por implementar el mecanismo que avisa al resto
+de nodos cuando una transaccion ha sido introducida. 
+Revisar los metodos y el funcionamiento de como se validan las cadenas ajenas y si estoy 
+enviando los objetos de cadenas correctamente para ser validados.
+Hacer una prueba general.
