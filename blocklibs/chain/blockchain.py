@@ -3,6 +3,7 @@ import json
 
 from blocklibs.chain.block import Block
 from blocklibs.crypto.hashing import Hashing
+from blocklibs.chain.errors import BlockChainError
 
 
 class Blockchain:
@@ -82,8 +83,7 @@ class Blockchain:
         Add unconfirmed transactions to the blockchain
         """
         if not self._unconfirmed_transactions:
-            print("Not transactions to add")
-            return False
+            raise BlockChainError("Not pending transactions to confirm")
 
         last_block = self.last_block
         new_block = Block(index=last_block.index,
@@ -123,8 +123,7 @@ class Blockchain:
         Property to get the whole blockchain of this node
         """
         node_data = [block.get_block for block in self._chain]
-        return json.dumps({"length": len(node_data),
-                           "chain": node_data})
+        return {"length": len(node_data), "chain": node_data}
 
     @property
     def get_chain_len(self):
@@ -140,13 +139,8 @@ class Blockchain:
         """
         return self._chain[-1]
 
-    @property
     def add_new_node(self, node):
         """
         Add a new node to the chain
         """
-        is_valid_node = True
-        if is_valid_node:
-            self._nodes.add(node)
-        else:
-            raise "Node is not a Node instance"
+        self._nodes.add(node)

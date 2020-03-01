@@ -6,6 +6,7 @@
     "configurations": [
         {
             "name": "Python: Flask",
+            "justMyCode": false,
             "type": "python",
             "request": "launch",
             "module": "flask",

@@ -2,15 +2,14 @@
 
 import json
 import datetime
-
-from flask import request
+import requests
 
 
 class Node():
 
     def __init__(self, node_address, node_name):
-        self._node_address = ""
-        self._node_name = ""
+        self._node_address = node_address
+        self._node_name = node_name
         self._time_stamp = datetime.datetime.now()
 
     def get_node_info(self):
@@ -21,8 +20,7 @@ class Node():
         """
         Get the whole block_chain from a remote.
         """
-        response = request.get('http://{}/chain'.format(self._node_address))
-        chain_length = response.json()['length']
-        chain_data = response.json()['chain']
+        response = requests.get(
+            'http://{}/Nodes/chain'.format(self._node_address))
 
-        return chain_length, chain_data
+        return response.json()
