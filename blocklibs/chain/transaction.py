@@ -10,7 +10,7 @@ class Transaction():
         self.timestamp = timestamp
 
     @property
-    def get_transaction(self):
+    def transaction(self):
 
         transaction = json.dumps(self.__dict__, sort_keys=True)
 

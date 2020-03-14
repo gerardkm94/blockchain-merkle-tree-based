@@ -42,9 +42,14 @@ class Transactions(Resource):
 
     def get(self):
         """
-        Retrieve pending transactions
+        Retrieve pending transactions, convert to JSON_Serializable
+        and return the value
         """
-        return json.dumps(block_chain.unconfirmed_transactions)
+        unconfirmed_transactions = []
+        for unconfirmed in block_chain.unconfirmed_transactions:
+            unconfirmed_transactions.append(unconfirmed.transaction)
+
+        return unconfirmed_transactions
 
     @api_transactions.expect(transaction_resource_fields)
     def post(self):
@@ -60,7 +65,7 @@ class Transactions(Resource):
             return api_response.raise_response(message, code.BAD_REQUEST)
 
         new_transaction = Transaction(author, content, time.time())
-        block_chain.add_new_transaction(new_transaction)
+        block_chain.unconfirmed_transactions = new_transaction
 
         message = "Transaction added, pending to validate "
         return api_response.raise_response(message, code.CREATED)
@@ -85,24 +90,12 @@ class UnconfirmedTransactions(Resource):
 
 @api_nodes.route('/chain')
 class Chain(Resource):
+
     def get(self):
         """
         Get the chain of the current node
         """
-        return block_chain.get_local_chain, 200
-
-
-@staticmethod
-def create_node_from_response(request):
-    try:
-        node_address = request.get_json()["node_address"]
-        node_name = request.get_json()["node_name"]
-    except:
-        message = "No node_address or name was provided"
-        return api_response.raise_response(message, code.BAD_REQUEST)
-
-    new_node = Node(node_address, node_name)
-    return new_node
+        return block_chain.chain_local_info, 200
 
 
 @api_nodes.route('/node')
@@ -113,15 +106,17 @@ class Nodes(Resource):
         """
         Post a new node to the network
         """
-        new_node = create_node_from_response(request)
-        block_chain.add_new_node(node=new_node)
+
         try:
+            new_node = Node.build_node_from_request(request)
             remote_chain = new_node.get_remote_chain()
+            block_chain.nodes = new_node
+
         except HttpErrors:
             message = "Can't request to the node"
             return api_response.raise_response(message, code.REQUEST_TIMEOUT)
 
-        return remote_chain, 200
+        return remote_chain, 201
 
 
 @api_nodes.route('/register_node')
@@ -131,16 +126,17 @@ class RegisterNode(Resource):
         """
         Register a new node to the network
         """
-        new_node = create_node_from_response(request)
+        new_node = Node.build_node_from_request(request)
         try:
             remote_chain = new_node.get_remote_chain()
         except HttpErrors:
             message = "Can't request to the node"
             return api_response.raise_response(message, code.REQUEST_TIMEOUT)
 
-        received_block_chain = Utils().create_chain(remote_chain.get("chain"))
-        block_chain.set_new_chain(received_block_chain)
-        block_chain.update_nodes(remote_chain.get("nodes"))
+        received_block_chain = block_chain.chain_builder(
+            remote_chain.get("chain"))
+        block_chain.chain = received_block_chain
+        block_chain.nodes_update = remote_chain.get("nodes")
 
         return api_response.raise_response("Registration successful", 201)
 

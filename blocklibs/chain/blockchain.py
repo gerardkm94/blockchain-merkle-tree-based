@@ -63,7 +63,7 @@ class Blockchain:
         """
         Adds the block to the chain if verification is okay
         """
-        previous_hash = self.last_block.hash
+        previous_hash = self.chain_last_block.hash
 
         if previous_hash != block.previous_hash:
             return False
@@ -75,9 +75,6 @@ class Blockchain:
         self._chain.append(block)
         return True
 
-    def add_new_transaction(self, transaction):
-        self.unconfirmed_transactions.append(transaction)
-
     def compute_transactions(self):
         """
         Add unconfirmed transactions to the blockchain
@@ -85,7 +82,7 @@ class Blockchain:
         if not self._unconfirmed_transactions:
             raise BlockChainError("Not pending transactions to confirm")
 
-        last_block = self.last_block
+        last_block = self.chain_last_block
         new_block = Block(index=last_block.index,
                           transactions=self._unconfirmed_transactions,
                           timestamp=time.time(),
@@ -124,7 +121,7 @@ class Blockchain:
         """
 
         longest_chain = None
-        current_len = self.get_chain_len
+        current_len = self.chain_len
 
         for node in self._nodes:
             remote_chain = node.get_remote_chain()
@@ -142,45 +139,100 @@ class Blockchain:
 
         return False
 
-    @property
-    def get_local_chain(self):
+    @classmethod
+    def chain_builder(cls, new_chain):
         """
-        Property to get the whole blockchain of this node
+        This method creates a new Blockchain instance from a 
+        remote instance or dump.
         """
-        node_data = [block.get_block for block in self._chain]
-        return {"length": len(node_data), "chain": node_data, "nodes": self._nodes}
+        block_chain = Blockchain()
+
+        for block_data in new_chain:
+            block_data = json.loads(block_data)
+            block = Block(
+                block_data.get("index"),
+                block_data.get("transactions"),
+                block_data.get("timestamp"),
+                block_data.get("previous_hash")
+            )
+            proof = block_data.get("hash")
+
+            if block_data.get("index") > 0:
+                is_block_added = block_chain.add_block(block, proof)
+                if not is_block_added:
+                    raise BlockChainError(
+                        "The chain is tampered, can be added")
+
+        return block_chain
 
     @property
-    def get_chain_len(self):
+    def chain(self):
         """
-        Property to get the len of the chain
+        Property to get the current chain
         """
-        return len(self._chain)
+        return self._chain
 
-    @property
-    def last_block(self):
-        """
-        Property to get the last block of the blockchain 
-        """
-        return self._chain[-1]
-
-    @property
-    def set_new_chain(self, received_chain):
+    @chain.setter
+    def chain(self, received_chain):
         """
         Property to set a new chain when a longer one is received
         """
         self._chain = received_chain
 
-    @property
-    def update_nodes(self, received_nodes):
+    @chain.getter
+    def chain_len(self):
         """
-        Property to sync the nodes within remote origins
+        Property to get the len of the chain
         """
-        self._nodes.update(received_nodes)
+        return len(self.chain)
+
+    @chain.getter
+    def chain_last_block(self):
+        """
+        Property to get the last block of the blockchain 
+        """
+        return self.chain.pop()
+
+    @chain.getter
+    def chain_local_info(self):
+        """
+        Property to get the whole blockchain of this node
+        """
+        node_data = [block.get_block for block in self._chain]
+        return {
+            "length": len(node_data),
+            "chain": node_data,
+            "nodes": list(self.nodes)
+        }
 
     @property
-    def add_new_node(self, node):
+    def nodes(self):
+        """
+        Property to get all the nodes
+        """
+        return self._nodes
+
+    @nodes.setter
+    def nodes(self, node):
         """
         Add a new node to the chain
         """
-        self._nodes.add(node)
+        self.nodes.add(node)
+
+    @nodes.setter
+    def nodes_update(self, received_nodes):
+        """
+        Property to sync the nodes within remote origins
+        """
+        self.nodes.update(received_nodes)
+
+    @property
+    def unconfirmed_transactions(self):
+        """
+        Retrieve all the pending transactions
+        """
+        return self._unconfirmed_transactions
+
+    @unconfirmed_transactions.setter
+    def unconfirmed_transactions(self, transaction):
+        self._unconfirmed_transactions.append(transaction)

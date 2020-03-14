@@ -7,8 +7,8 @@ class Utils():
     """
     Class to handle all the util operations
     """
-    @staticmethod
-    def create_chain(new_chain):
+    @classmethod
+    def create_chain(cls, new_chain):
         """
         This method creates a new Blockchain instance from a 
         remote instance or dump.

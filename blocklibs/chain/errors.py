@@ -22,6 +22,18 @@ class BlockChainError(Errors):
     """
 
 
+class NodeError(Errors):
+    """
+    Class to handle all the errors inside Node's Module
+    """
+
+    def __init__(self, message):
+        self.message = message
+
+    def invalid_node(self):
+        return {'message': str(self.message)}
+
+
 class ApiResponse():
     """
     Class to normalize the raised errors
