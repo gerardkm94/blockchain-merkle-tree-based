@@ -6,7 +6,7 @@ class Hashing:
     This class will manage all related hashing methods. Blocks and transactions
     will be hashed using this Class. Several hashing methods with different purposes
     will be declared here.
-    """      
+    """
     @staticmethod
     def compute_sha256_hash(block_or_trans):
         """
@@ -16,5 +16,5 @@ class Hashing:
         argument
         """
         hashed_output = sha256(block_or_trans.encode()).hexdigest()
-        
+
         return hashed_output

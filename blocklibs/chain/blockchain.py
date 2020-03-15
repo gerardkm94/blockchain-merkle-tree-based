@@ -3,7 +3,7 @@ import json
 
 from blocklibs.chain.block import Block
 from blocklibs.crypto.hashing import Hashing
-from blocklibs.chain.errors import BlockChainError
+from blocklibs.chain.errors import BlockChainError, NodeError
 
 
 class Blockchain:
@@ -15,17 +15,18 @@ class Blockchain:
     the core of the applications, storing and managing all the blockchain operations.
 
     Parameters:
-    # TODO Explain better.
     difficulty (int): Difficulty level of the blockchain.
     """
 
     def __init__(self):
         """
-        Parameters:
-
+        Attributes:
+        difficulty (int): Mine blockchain difficulty.
         unconfirmed_transactions (list): Transactions stored, but pending to confirm.
         chain (list): List of blocks (Block) objects, conforming the whole chain.
         nodes (set): Contains all the nodes that are contributing to the blockchain.
+
+
         """
         self._difficulty = 2
         self._unconfirmed_transactions = []
@@ -40,28 +41,56 @@ class Blockchain:
         """
         genesis_block = Block(0, [], time.time(), "0")
         genesis_block.hash = Hashing.compute_sha256_hash(
-            genesis_block.get_block)
+            genesis_block.get_block())
         self._chain.append(genesis_block)
 
     def proof_of_work(self, block):
+        """
+        Calculates the hash for a given block until the criteria its accomplished. 
+        The difficulty of the proof of work will set the difficulty level to achieve the hash.
+
+        Parameters: 
+        block (Block): Block instance. 
+
+        Returns: 
+        hashed_block (str): The result of hashing the input Block meeting the criteria.
+        """
 
         block.nonce = 0
+        hashed_block = Hashing.compute_sha256_hash(block.get_block())
 
-        hashed_block = Hashing.compute_sha256_hash(block)
         while not hashed_block.startswith('0' * self._difficulty):
             block.nonce += 1
-            hashed_block = Hashing.compute_sha256_hash(block)
+            hashed_block = Hashing.compute_sha256_hash(block.get_block())
 
         return hashed_block
 
     def is_valid_proof_of_work(self, block, block_hash):
+        """
+        Check if a given block_hash meets the difficulty criteria and if the computed hash
+        of the given block is equal to the calculated in the chain and it's not tampered.
+
+        Parameters:
+        block (Block): Block instance.
+        block_hash (str): Hash of the given block
+
+        Returns: 
+        Boolean, True if all conditions are met. 
+        """
 
         return (block_hash.startswith('0' * self._difficulty)
-                and block_hash == Hashing.compute_sha256_hash(block))
+                and block_hash == Hashing.compute_sha256_hash(block.get_block()))
 
     def add_block(self, block, proof_of_work):
         """
-        Adds the block to the chain if verification is okay
+        Adds the block to the chain if verification is okay.
+
+        Parameters: 
+        block (Block): Block trying to be added.
+        proof_of_work (str): Hash of the block.
+
+        Returns: 
+        Boolean, True if the bloock meets the conditions to be added. False if not.
         """
         previous_hash = self.chain_last_block.hash
 
@@ -78,19 +107,25 @@ class Blockchain:
     def compute_transactions(self):
         """
         Add unconfirmed transactions to the blockchain
+
+        Returns: 
+        new_block.index (int): The Index of the added block.
         """
         if not self._unconfirmed_transactions:
             raise BlockChainError("Not pending transactions to confirm")
 
+        unconfirmed_transactions_serialized = [
+            json.loads(unconfirmed.transaction) for unconfirmed in self.unconfirmed_transactions]
+
         last_block = self.chain_last_block
-        new_block = Block(index=last_block.index,
-                          transactions=self._unconfirmed_transactions,
+        new_block = Block(index=last_block.index + 1,
+                          transactions=unconfirmed_transactions_serialized,
                           timestamp=time.time(),
                           previous_hash=last_block.hash)
 
         proof_of_work = self.proof_of_work(new_block)
         self.add_block(new_block, proof_of_work)
-        self.unconfirmed_transactions = []
+        self.unconfirmed_transactions_reset
         return new_block.index
 
     def check_chain_validity(self, chain):
@@ -183,6 +218,9 @@ class Blockchain:
     def chain_len(self):
         """
         Property to get the len of the chain
+
+        Returns: 
+        The len of the chain.
         """
         return len(self.chain)
 
@@ -190,19 +228,27 @@ class Blockchain:
     def chain_last_block(self):
         """
         Property to get the last block of the blockchain 
+
+        Returns: 
+        last_added_block (Block): Last added block to the chain.
+
         """
-        return self.chain.pop()
+        last_added_block = self.chain[-1]
+
+        return last_added_block
 
     @chain.getter
     def chain_local_info(self):
         """
         Property to get the whole blockchain of this node
         """
-        node_data = [block.get_block for block in self._chain]
+        node_chain_data = [block.get_block() for block in self.chain]
+        node_data = [node.get_node_info() for node in self.nodes]
+
         return {
-            "length": len(node_data),
-            "chain": node_data,
-            "nodes": list(self.nodes)
+            "length": len(node_chain_data),
+            "chain": node_chain_data,
+            "nodes": node_data
         }
 
     @property
@@ -213,11 +259,17 @@ class Blockchain:
         return self._nodes
 
     @nodes.setter
-    def nodes(self, node):
+    def nodes(self, new_node):
         """
         Add a new node to the chain
         """
-        self.nodes.add(node)
+        for registered_node in self.nodes:
+
+            if registered_node.get_node_info() == new_node.get_node_info():
+
+                raise NodeError("Already Registered")
+
+        self.nodes.add(new_node)
 
     @nodes.setter
     def nodes_update(self, received_nodes):
@@ -236,3 +288,7 @@ class Blockchain:
     @unconfirmed_transactions.setter
     def unconfirmed_transactions(self, transaction):
         self._unconfirmed_transactions.append(transaction)
+
+    @property
+    def unconfirmed_transactions_reset(self):
+        self._unconfirmed_transactions = []

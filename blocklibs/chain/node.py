@@ -14,7 +14,6 @@ class Node():
     def __init__(self, node_address, node_name):
         self._node_address = node_address
         self._node_name = node_name
-        self._time_stamp = datetime.datetime.now()
 
     def get_node_info(self):
         node = json.dumps(self.__dict__, sort_keys=True)

@@ -13,7 +13,6 @@ class Block:
         self.previous_hash = previous_hash
         self.nonce = 0
 
-    @property
     def get_block(self):
         """
         This method returns a Json Object with the block data 

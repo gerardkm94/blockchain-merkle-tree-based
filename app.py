@@ -7,7 +7,7 @@ from flask_restplus import Api, Resource, fields, reqparse
 from requests.exceptions import ConnectionError
 
 from blocklibs.chain.blockchain import Blockchain
-from blocklibs.chain.errors import ApiResponse, BlockChainError, HttpErrors
+from blocklibs.chain.errors import ApiResponse, BlockChainError, HttpErrors, NodeError
 from blocklibs.chain.node import Node
 from blocklibs.chain.transaction import Transaction
 from blocklibs.chain.utils import Utils
@@ -104,19 +104,21 @@ class Nodes(Resource):
     @api_nodes.expect(node_resource_fields)
     def post(self):
         """
-        Post a new node to the network
+        A new node registers in to the network, and local chain info is returned to be synced
+        in foreign nodes.
         """
-
         try:
             new_node = Node.build_node_from_request(request)
-            remote_chain = new_node.get_remote_chain()
             block_chain.nodes = new_node
 
         except HttpErrors:
-            message = "Can't request to the node"
+            message = "Can't add the node to the Chain. Invalid data"
             return api_response.raise_response(message, code.REQUEST_TIMEOUT)
+        except NodeError:
+            message = "Node is already registered"
+            return api_response.raise_response(message, 401)
 
-        return remote_chain, 201
+        return block_chain.chain_local_info, 201
 
 
 @api_nodes.route('/register_node')
@@ -135,7 +137,7 @@ class RegisterNode(Resource):
 
         received_block_chain = block_chain.chain_builder(
             remote_chain.get("chain"))
-        block_chain.chain = received_block_chain
+        block_chain.chain = received_block_chain.chain
         block_chain.nodes_update = remote_chain.get("nodes")
 
         return api_response.raise_response("Registration successful", 201)
