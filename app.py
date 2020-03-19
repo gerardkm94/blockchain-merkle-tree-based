@@ -1,5 +1,6 @@
 import json
 import time
+import requests
 from http import HTTPStatus as code
 
 from flask import Flask, request
@@ -16,6 +17,8 @@ app = Flask(__name__)
 api = Api(app)
 block_chain = Blockchain()
 api_response = ApiResponse()
+
+max_request_retry = 3
 
 api_transactions = api.namespace(
     'Transactions', description='Transactions operations')
@@ -46,6 +49,7 @@ class Transactions(Resource):
         and return the value
         """
         unconfirmed_transactions = []
+        # pylint: disable=not-an-iterable
         for unconfirmed in block_chain.unconfirmed_transactions:
             unconfirmed_transactions.append(unconfirmed.transaction)
 
@@ -98,7 +102,7 @@ class Chain(Resource):
         return block_chain.chain_local_info, 200
 
 
-@api_nodes.route('/node')
+@api_nodes.route('/register_node')
 class Nodes(Resource):
 
     @api_nodes.expect(node_resource_fields)
@@ -116,31 +120,63 @@ class Nodes(Resource):
             return api_response.raise_response(message, code.REQUEST_TIMEOUT)
         except NodeError:
             message = "Node is already registered"
-            return api_response.raise_response(message, 401)
+            return api_response.raise_response(message, code.FORBIDDEN)
 
-        return block_chain.chain_local_info, 201
+        return block_chain.chain_local_info, code.CREATED
 
 
-@api_nodes.route('/register_node')
+@api_nodes.route('/sync_node')
 class RegisterNode(Resource):
     @api_nodes.expect(node_resource_fields)
     def post(self):
         """
         Register a new node to the network
         """
-        new_node = Node.build_node_from_request(request)
+
         try:
-            remote_chain = new_node.get_remote_chain()
+            post_data = {
+                'node_address': request.host_url, 'node_name': request.json.get('node_name')
+            }
+            headers = {'Content-Type': "application/json"}
+
+            for _ in range(0, max_request_retry):
+
+                response = requests.post(
+                    f"{request.json.get('node_address')}/Nodes/register_node",
+                    data=json.dumps(post_data),
+                    headers=headers
+                )
+
+                if response.status_code == code.CREATED:
+                    break
+
+                elif response.status_code == code.FORBIDDEN:
+                    message = response.reason
+                    return api_response.raise_response(message, code.FORBIDDEN)
+
         except HttpErrors:
             message = "Can't request to the node"
-            return api_response.raise_response(message, code.REQUEST_TIMEOUT)
+            return api_response.raise_response(message, code.BAD_REQUEST)
 
-        received_block_chain = block_chain.chain_builder(
-            remote_chain.get("chain"))
-        block_chain.chain = received_block_chain.chain
-        block_chain.nodes_update = remote_chain.get("nodes")
+        if response.status_code == code.CREATED:
 
-        return api_response.raise_response("Registration successful", 201)
+            remote_node_info = response.json()
+
+            try:
+                received_block_chain = block_chain.chain_builder(
+                    remote_node_info.get('chain')
+                )
+
+            except BlockChainError as bc_error:
+                return api_response.raise_response(str(bc_error), code.METHOD_NOT_ALLOWED)
+
+            else:
+                block_chain.chain = received_block_chain
+                block_chain.nodes_update = remote_node_info.get('nodes')
+                return api_response.raise_response("Registration successful", 201)
+
+        else:
+            return api_response.raise_response("Can't sync to remote node", response.status_code)
 
 
 # Since is development server, we can use app.run for instance, waitress.

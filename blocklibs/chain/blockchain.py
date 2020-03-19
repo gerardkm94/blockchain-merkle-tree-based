@@ -92,6 +92,7 @@ class Blockchain:
         Returns: 
         Boolean, True if the bloock meets the conditions to be added. False if not.
         """
+        # pylint: disable=maybe-no-member
         previous_hash = self.chain_last_block.hash
 
         if previous_hash != block.previous_hash:
@@ -101,7 +102,7 @@ class Blockchain:
             return False
 
         block.hash = proof_of_work
-        self._chain.append(block)
+        self.chain.append(block)
         return True
 
     def compute_transactions(self):
@@ -118,6 +119,7 @@ class Blockchain:
             json.loads(unconfirmed.transaction) for unconfirmed in self.unconfirmed_transactions]
 
         last_block = self.chain_last_block
+        # pylint: disable=maybe-no-member
         new_block = Block(index=last_block.index + 1,
                           transactions=unconfirmed_transactions_serialized,
                           timestamp=time.time(),
@@ -181,6 +183,7 @@ class Blockchain:
         remote instance or dump.
         """
         block_chain = Blockchain()
+        block_chain.chain = []
 
         for block_data in new_chain:
             block_data = json.loads(block_data)
@@ -196,7 +199,10 @@ class Blockchain:
                 is_block_added = block_chain.add_block(block, proof)
                 if not is_block_added:
                     raise BlockChainError(
-                        "The chain is tampered, can be added")
+                        "The chain is tampered, can't be added")
+            else:
+                block.hash = block_data.get("hash")
+                block_chain.chain.append(block)
 
         return block_chain
 
