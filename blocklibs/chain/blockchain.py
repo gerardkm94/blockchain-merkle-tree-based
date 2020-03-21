@@ -59,6 +59,7 @@ class Blockchain:
         block.nonce = 0
         hashed_block = Hashing.compute_sha256_hash(block.get_block())
 
+        # TODO ver que hash calcula aqui, y en el otro lugar
         while not hashed_block.startswith('0' * self._difficulty):
             block.nonce += 1
             hashed_block = Hashing.compute_sha256_hash(block.get_block())
