@@ -3,7 +3,7 @@ import json
 
 class Block:
 
-    def __init__(self, index, transactions, timestamp, previous_hash):
+    def __init__(self, index, transactions, timestamp, previous_hash, nonce=0):
         """
         Block Structure
         """
@@ -11,7 +11,7 @@ class Block:
         self.transactions = transactions
         self.timestamp = timestamp
         self.previous_hash = previous_hash
-        self.nonce = 0
+        self.nonce = nonce
 
     def get_block(self):
         """

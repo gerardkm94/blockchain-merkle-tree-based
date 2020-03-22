@@ -37,6 +37,12 @@ class NodeError(Errors):
         return {'message': str(self.message)}
 
 
+class SerializeNodeError(Errors):
+    """
+    Class to handle all the Node Serialize Errors
+    """
+
+
 class ApiResponse():
     """
     Class to normalize the raised errors

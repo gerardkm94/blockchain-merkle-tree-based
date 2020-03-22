@@ -33,10 +33,18 @@ transaction_resource_fields = api.model('Transaction',  {
 },
 )
 
-node_resource_fields = api.model('Node',  {
-    'node_address': fields.Url,
+node_sync_resource_fields = api.model('Node',  {
+    'node_address': fields.Url},
+)
+
+node_name_resource_fields = api.model('NameNode',  {
     'node_name': fields.String,
 },
+)
+
+node_register_resource_fields = api.model('RegisterNode',  {
+    'node_address': fields.Url,
+    'node_name': fields.String, },
 )
 
 
@@ -102,10 +110,30 @@ class Chain(Resource):
         return block_chain.chain_local_info, 200
 
 
+@api_nodes.route('/set_name_node')
+class NodeName(Resource):
+
+    @api_nodes.expect(node_name_resource_fields)
+    def post(self):
+        """
+        Add a name to the current node instance
+        """
+        try:
+            block_chain.self_node_identifier = Node(
+                request.host_url, request.json.get('node_name')
+            )
+
+        except:
+            message = "Can't name the node like that, please, choose another name"
+            return api_response.raise_response(message, 500)
+
+        return f"Name Set to {request.json.get('node_name')}", 200
+
+
 @api_nodes.route('/register_node')
 class Nodes(Resource):
 
-    @api_nodes.expect(node_resource_fields)
+    @api_nodes.expect(node_register_resource_fields)
     def post(self):
         """
         A new node registers in to the network, and local chain info is returned to be synced
@@ -127,7 +155,7 @@ class Nodes(Resource):
 
 @api_nodes.route('/sync_node')
 class RegisterNode(Resource):
-    @api_nodes.expect(node_resource_fields)
+    @api_nodes.expect(node_sync_resource_fields)
     def post(self):
         """
         Register a new node to the network
@@ -135,7 +163,8 @@ class RegisterNode(Resource):
 
         try:
             post_data = {
-                'node_address': request.host_url, 'node_name': request.json.get('node_name')
+                'node_address': request.host_url,
+                'node_name': block_chain.self_node_identifier.node_name
             }
             headers = {'Content-Type': "application/json"}
 
@@ -158,6 +187,10 @@ class RegisterNode(Resource):
             message = "Can't request to the node"
             return api_response.raise_response(message, code.BAD_REQUEST)
 
+        except AttributeError:
+            message = "Please, set a name for your node"
+            return api_response.raise_response(message, code.NOT_FOUND)
+
         if response.status_code == code.CREATED:
 
             remote_node_info = response.json()
@@ -171,8 +204,17 @@ class RegisterNode(Resource):
                 return api_response.raise_response(str(bc_error), code.METHOD_NOT_ALLOWED)
 
             else:
-                block_chain.chain = received_block_chain
-                block_chain.nodes_update = remote_node_info.get('nodes')
+                # Adding chain
+                block_chain.chain = received_block_chain.chain
+                # Adding received nodes, and deleting own node
+                block_chain.nodes_update = Node.serialize_nodes(
+                    remote_node_info.get('nodes'),
+                    block_chain.self_node_identifier.get_node_info())
+                # Adding remote node
+                block_chain.nodes_update = Node.serialize_nodes(
+                    [remote_node_info.get('node_identifier')],
+                    block_chain.self_node_identifier.get_node_info())
+
                 return api_response.raise_response("Registration successful", 201)
 
         else:

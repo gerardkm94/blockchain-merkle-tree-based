@@ -32,6 +32,7 @@ class Blockchain:
         self._unconfirmed_transactions = []
         self._chain = []
         self._nodes = set()
+        self._self_node_identifier = None
         self.get_genesis_block()
 
     def get_genesis_block(self):
@@ -39,7 +40,7 @@ class Blockchain:
         This method creates a genesis block (First block to be stored into the chain)
         and appends it into the block chain.
         """
-        genesis_block = Block(0, [], time.time(), "0")
+        genesis_block = Block(0, [], 0, "0")
         genesis_block.hash = Hashing.compute_sha256_hash(
             genesis_block.get_block())
         self._chain.append(genesis_block)
@@ -59,7 +60,6 @@ class Blockchain:
         block.nonce = 0
         hashed_block = Hashing.compute_sha256_hash(block.get_block())
 
-        # TODO ver que hash calcula aqui, y en el otro lugar
         while not hashed_block.startswith('0' * self._difficulty):
             block.nonce += 1
             hashed_block = Hashing.compute_sha256_hash(block.get_block())
@@ -184,7 +184,6 @@ class Blockchain:
         remote instance or dump.
         """
         block_chain = Blockchain()
-        block_chain.chain = []
 
         for block_data in new_chain:
             block_data = json.loads(block_data)
@@ -192,7 +191,8 @@ class Blockchain:
                 block_data.get("index"),
                 block_data.get("transactions"),
                 block_data.get("timestamp"),
-                block_data.get("previous_hash")
+                block_data.get("previous_hash"),
+                block_data.get("nonce")
             )
             proof = block_data.get("hash")
 
@@ -201,9 +201,6 @@ class Blockchain:
                 if not is_block_added:
                     raise BlockChainError(
                         "The chain is tampered, can't be added")
-            else:
-                block.hash = block_data.get("hash")
-                block_chain.chain.append(block)
 
         return block_chain
 
@@ -255,7 +252,8 @@ class Blockchain:
         return {
             "length": len(node_chain_data),
             "chain": node_chain_data,
-            "nodes": node_data
+            "nodes": node_data,
+            "node_identifier": self.self_node_identifier.get_node_info(),
         }
 
     @property
@@ -299,3 +297,11 @@ class Blockchain:
     @property
     def unconfirmed_transactions_reset(self):
         self._unconfirmed_transactions = []
+
+    @property
+    def self_node_identifier(self):
+        return self._self_node_identifier
+
+    @self_node_identifier.setter
+    def self_node_identifier(self, node):
+        self._self_node_identifier = node

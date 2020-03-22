@@ -6,7 +6,7 @@ from http import HTTPStatus as code
 
 import requests
 
-from blocklibs.chain.errors import HttpErrors, NodeError
+from blocklibs.chain.errors import HttpErrors, NodeError, SerializeNodeError
 
 
 class Node():
@@ -48,6 +48,33 @@ class Node():
         new_node = Node(node_address, node_name)
         return new_node
 
+    @staticmethod
+    def serialize_nodes(str_nodes, self_node):
+        """
+        Serialize the received nodes in string format to Node
+        """
+        serialized_nodes = []
+        try:
+            received_nodes = str_nodes
+            for node in received_nodes:
+
+                if node != self_node:
+                    node = json.loads(node)
+                    serialized_nodes.append(
+                        Node(node.get('_node_address'), node.get('_node_name'))
+                    )
+                else:
+                    continue
+
+        except Exception as e:
+            return SerializeNodeError("Can't serialize the node" + str(e))
+
+        return serialized_nodes
+
     @property
     def node_address(self):
         return self._node_address
+
+    @property
+    def node_name(self):
+        return self._node_name
