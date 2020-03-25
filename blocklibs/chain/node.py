@@ -6,7 +6,7 @@ from http import HTTPStatus as code
 
 import requests
 
-from blocklibs.chain.errors import HttpErrors, NodeError
+from blocklibs.chain.errors import HttpErrors, NodeError, SerializeNodeError
 
 
 class Node():
@@ -14,7 +14,6 @@ class Node():
     def __init__(self, node_address, node_name):
         self._node_address = node_address
         self._node_name = node_name
-        self._time_stamp = datetime.datetime.now()
 
     def get_node_info(self):
         node = json.dumps(self.__dict__, sort_keys=True)
@@ -26,7 +25,7 @@ class Node():
         """
         try:
             response = requests.get(
-                'http://{}/Nodes/chain'.format(self._node_address))
+                '{}Nodes/chain'.format(self._node_address))
         except ConnectionError:
             message = "Can't get remote chain"
             raise HttpErrors(message)
@@ -48,3 +47,34 @@ class Node():
 
         new_node = Node(node_address, node_name)
         return new_node
+
+    @staticmethod
+    def serialize_nodes(str_nodes, self_node):
+        """
+        Serialize the received nodes in string format to Node
+        """
+        serialized_nodes = []
+        try:
+            received_nodes = str_nodes
+            for node in received_nodes:
+
+                if node != self_node:
+                    node = json.loads(node)
+                    serialized_nodes.append(
+                        Node(node.get('_node_address'), node.get('_node_name'))
+                    )
+                else:
+                    continue
+
+        except Exception as e:
+            return SerializeNodeError("Can't serialize the node" + str(e))
+
+        return serialized_nodes
+
+    @property
+    def node_address(self):
+        return self._node_address
+
+    @property
+    def node_name(self):
+        return self._node_name

@@ -33,6 +33,15 @@ class NodeError(Errors):
     def invalid_node(self):
         return {'message': str(self.message)}
 
+    def existent_node(self):
+        return {'message': str(self.message)}
+
+
+class SerializeNodeError(Errors):
+    """
+    Class to handle all the Node Serialize Errors
+    """
+
 
 class ApiResponse():
     """
