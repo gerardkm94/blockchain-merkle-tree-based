@@ -1,5 +1,6 @@
 import time
 import json
+import requests
 
 from blocklibs.chain.block import Block
 from blocklibs.crypto.hashing import Hashing
@@ -161,7 +162,7 @@ class Blockchain:
         longest_chain = None
         current_len = self.chain_len
 
-        for node in self._nodes:
+        for node in self.nodes:
             remote_chain = node.get_remote_chain()
             chain_len = remote_chain.get("length")
             chain_data = remote_chain.get("chain")
@@ -170,8 +171,8 @@ class Blockchain:
                 current_len = chain_len
                 longest_chain = chain_data
 
-        if longest_chain:
-            self._chain = longest_chain
+        if longest_chain is not None:
+            self.chain = longest_chain
             print("Consensus achieved, longer chain found")
             return True
 
@@ -203,6 +204,49 @@ class Blockchain:
                         "The chain is tampered, can't be added")
 
         return block_chain
+
+    def publish_new_block(self):
+        """
+        Publish a new block on remote nodes. In this implementations, the number of calls
+        is set to 1000 to give time to remote nodes to be released if they're performing operations.
+
+        IMPROVEMENT: Make this operations through threads and status.
+        """
+        failed_nodes = []
+
+        for node in self.nodes:
+            url = f"{node.node_address}Block/add"
+            # pylint: disable=maybe-no-member
+            data = self.chain_last_block.get_block()
+            headers = {'Content-Type': "application/json"}
+
+            try:
+                for _ in range(0, 100):
+                    response = requests.post(
+                        url,
+                        data=data,
+                        headers=headers)
+
+                    if response.status_code == 201:
+                        break
+
+                if response.status_code != 201:
+                    # If after X attempts status_code is not 201, error:
+                    failed_nodes.append(
+                        {'node': node.get_node_info(),
+                         'error_code': response.status_code,
+                         'error_message': response.content,
+                         }
+                    )
+
+            except Exception as add_node_error:
+                failed_nodes.append(
+                    {'node': node.get_node_info(),
+                        'error_message': str(add_node_error)
+                     }
+                )
+
+        return failed_nodes
 
     @property
     def chain(self):
@@ -248,12 +292,16 @@ class Blockchain:
         """
         node_chain_data = [block.get_block() for block in self.chain]
         node_data = [node.get_node_info() for node in self.nodes]
+        try:
+            self_node_identifier = self.self_node_identifier.get_node_info()
+        except:
+            raise NodeError("Please, set first the Node's Name")
 
         return {
             "length": len(node_chain_data),
             "chain": node_chain_data,
             "nodes": node_data,
-            "node_identifier": self.self_node_identifier.get_node_info(),
+            "node_identifier": self_node_identifier,
         }
 
     @property

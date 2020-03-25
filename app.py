@@ -12,6 +12,7 @@ from blocklibs.chain.errors import ApiResponse, BlockChainError, HttpErrors, Nod
 from blocklibs.chain.node import Node
 from blocklibs.chain.transaction import Transaction
 from blocklibs.chain.utils import Utils
+from blocklibs.chain.block import Block
 
 app = Flask(__name__)
 api = Api(app)
@@ -22,8 +23,8 @@ max_request_retry = 3
 
 api_transactions = api.namespace(
     'Transactions', description='Transactions operations')
-api_operations = api.namespace(
-    'Operations', description='Computational operations')
+api_block = api.namespace(
+    'Block', description='Block Operations')
 api_nodes = api.namespace('Nodes', description='Nodes operations')
 
 # Data Schemas definition Move to its package
@@ -47,8 +48,10 @@ node_register_resource_fields = api.model('RegisterNode',  {
     'node_name': fields.String, },
 )
 
+block_resource_fields = api.model('Block', {})
 
-@api_transactions.route('/transactions')
+
+@api_transactions.route('/unconfirmed')
 class Transactions(Resource):
 
     def get(self):
@@ -83,21 +86,59 @@ class Transactions(Resource):
         return api_response.raise_response(message, code.CREATED)
 
 
-@api_operations.route('/unconfirmed_transactions')
+@api_transactions.route('/mine')
 class UnconfirmedTransactions(Resource):
 
     def get(self):
         """
         Mine unconfirmed transactions
+
+        First, call consensus to assure that the chain is in the last version before update
+        the block info.
         """
         try:
+            is_chain_updated = block_chain.consensus()
             result = block_chain.compute_transactions()
         except BlockChainError:
             message = "No unconfirmed transactions to mine"
             return api_response.raise_response(message, 200)
+        else:
+            failed_publications = block_chain.publish_new_block()
 
-        message = "Block #{} mined".format(result)
+        if not failed_publications:
+            message = f"Block {result} mined. Chain updated: {is_chain_updated}"
+        else:
+            message = f"""Block {result} mined. Chain updated: {is_chain_updated}. 
+            Nodes that did not accept the block {json.dumps(failed_publications)}"""
+
         return api_response.raise_response(message, 200)
+
+
+@api_block.route('/add')
+class Blocks(Resource):
+
+    @api_block.expect(block_resource_fields)
+    def post(self):
+        """
+        Add an external mined block to the chain.
+        """
+        new_block = request.get_json()
+        block = Block(
+            new_block.get("index"),
+            new_block.get("transactions"),
+            new_block.get("timestamp"),
+            new_block.get("previous_hash"),
+            new_block.get("nonce")
+        )
+        proof = new_block.get("hash")
+        is_block_added = block_chain.add_block(block, proof)
+
+        if not is_block_added:
+            message = "Block not valid, discarded by the node"
+            return api_response.raise_response(message, code.BAD_REQUEST)
+
+        message = "Block mined and sent to the nodes"
+        return api_response.raise_response(message, code.CREATED)
 
 
 @api_nodes.route('/chain')
@@ -107,10 +148,14 @@ class Chain(Resource):
         """
         Get the chain of the current node
         """
-        return block_chain.chain_local_info, 200
+        try:
+            return block_chain.chain_local_info, 200
+
+        except NodeError as name_error:
+            return api_response.raise_response(str(name_error), 500)
 
 
-@api_nodes.route('/set_name_node')
+@api_nodes.route('/set_name')
 class NodeName(Resource):
 
     @api_nodes.expect(node_name_resource_fields)

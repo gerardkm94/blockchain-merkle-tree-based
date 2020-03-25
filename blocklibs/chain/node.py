@@ -25,7 +25,7 @@ class Node():
         """
         try:
             response = requests.get(
-                'http://{}/Nodes/chain'.format(self._node_address))
+                '{}Nodes/chain'.format(self._node_address))
         except ConnectionError:
             message = "Can't get remote chain"
             raise HttpErrors(message)
