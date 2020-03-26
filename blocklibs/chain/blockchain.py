@@ -1,10 +1,16 @@
 import time
 import json
 import requests
+from http import HTTPStatus as code
+from blocklibs.chain.errors import ApiResponse, BlockChainError, HttpErrors, NodeError
 
 from blocklibs.chain.block import Block
 from blocklibs.crypto.hashing import Hashing
 from blocklibs.chain.errors import BlockChainError, NodeError
+
+from flask import request
+
+max_request_retry = 3
 
 
 class Blockchain:
@@ -92,7 +98,7 @@ class Blockchain:
         proof_of_work (str): Hash of the block.
 
         Returns: 
-        Boolean, True if the bloock meets the conditions to be added. False if not.
+        Boolean, True if the block meets the conditions to be added. False if not.
         """
         # pylint: disable=maybe-no-member
         previous_hash = self.chain_last_block.hash
@@ -247,6 +253,31 @@ class Blockchain:
                 )
 
         return failed_nodes
+
+    def register_node(self, node_address):
+        """
+        This method publish _self_node to the specified node address list.
+        """
+        post_data = {
+            'node_address': request.host_url.rstrip('/'),
+            'node_name': self.self_node_identifier.node_name
+        }
+        headers = {'Content-Type': "application/json"}
+
+        for _ in range(0, max_request_retry):
+
+            response = requests.post(
+                f"{node_address}/Nodes/register_node",
+                data=json.dumps(post_data),
+                headers=headers
+            )
+
+            if response.status_code == code.CREATED:
+                return response
+
+            else:
+                message = response.reason
+                raise HttpErrors(message)
 
     @property
     def chain(self):

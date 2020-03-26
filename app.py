@@ -1,6 +1,7 @@
 import json
 import time
 import requests
+import sys
 from http import HTTPStatus as code
 
 from flask import Flask, request
@@ -108,7 +109,7 @@ class UnconfirmedTransactions(Resource):
         if not failed_publications:
             message = f"Block {result} mined. Chain updated: {is_chain_updated}"
         else:
-            message = f"""Block {result} mined. Chain updated: {is_chain_updated}. 
+            message = f"""Block {result} mined. Chain updated: {is_chain_updated}.
             Nodes that did not accept the block {json.dumps(failed_publications)}"""
 
         return api_response.raise_response(message, 200)
@@ -165,7 +166,7 @@ class NodeName(Resource):
         """
         try:
             block_chain.self_node_identifier = Node(
-                request.host_url, request.json.get('node_name')
+                request.host_url.rstrip('/'), request.json.get('node_name')
             )
 
         except:
@@ -207,26 +208,8 @@ class RegisterNode(Resource):
         """
 
         try:
-            post_data = {
-                'node_address': request.host_url,
-                'node_name': block_chain.self_node_identifier.node_name
-            }
-            headers = {'Content-Type': "application/json"}
-
-            for _ in range(0, max_request_retry):
-
-                response = requests.post(
-                    f"{request.json.get('node_address')}/Nodes/register_node",
-                    data=json.dumps(post_data),
-                    headers=headers
-                )
-
-                if response.status_code == code.CREATED:
-                    break
-
-                elif response.status_code == code.FORBIDDEN:
-                    message = response.reason
-                    return api_response.raise_response(message, code.FORBIDDEN)
+            node_address = request.json.get('node_address')
+            response = block_chain.register_node(node_address)
 
         except HttpErrors:
             message = "Can't request to the node"
@@ -251,10 +234,17 @@ class RegisterNode(Resource):
             else:
                 # Adding chain
                 block_chain.chain = received_block_chain.chain
+
                 # Adding received nodes, and deleting own node
-                block_chain.nodes_update = Node.serialize_nodes(
+                received_nodes = Node.serialize_nodes(
                     remote_node_info.get('nodes'),
                     block_chain.self_node_identifier.get_node_info())
+                block_chain.nodes_update = received_nodes
+
+                for node in received_nodes:
+                    # Register mi node in all received nodes
+                    block_chain.register_node(node.node_address)
+
                 # Adding remote node
                 block_chain.nodes_update = Node.serialize_nodes(
                     [remote_node_info.get('node_identifier')],
@@ -270,4 +260,4 @@ class RegisterNode(Resource):
 # https://flask.palletsprojects.com/en/1.1.x/tutorial/deploy/
 # It works wen is run with python instead of flask run
 if __name__ == '__main__':
-    app.run(debug=True, port=8000)
+    app.run(debug=False, port=sys.argv[1])
