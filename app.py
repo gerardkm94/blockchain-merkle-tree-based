@@ -12,7 +12,6 @@ from blocklibs.chain.blockchain import Blockchain
 from blocklibs.chain.errors import ApiResponse, BlockChainError, HttpErrors, NodeError
 from blocklibs.chain.node import Node
 from blocklibs.chain.transaction import Transaction
-from blocklibs.chain.utils import Utils
 from blocklibs.chain.block import Block
 
 app = Flask(__name__)
@@ -129,7 +128,8 @@ class Blocks(Resource):
             new_block.get("transactions"),
             new_block.get("timestamp"),
             new_block.get("previous_hash"),
-            new_block.get("nonce")
+            new_block.get("nonce"),
+            new_block.get("merkle_root")
         )
         proof = new_block.get("hash")
         is_block_added = block_chain.add_block(block, proof)

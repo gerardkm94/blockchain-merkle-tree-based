@@ -1,12 +1,14 @@
 import time
 import json
 import requests
+import copy
 from http import HTTPStatus as code
 from blocklibs.chain.errors import ApiResponse, BlockChainError, HttpErrors, NodeError
 
 from blocklibs.chain.block import Block
 from blocklibs.crypto.hashing import Hashing
 from blocklibs.chain.errors import BlockChainError, NodeError
+from blocklibs.chain.utils import Utils
 
 from flask import request
 
@@ -123,19 +125,42 @@ class Blockchain:
         if not self._unconfirmed_transactions:
             raise BlockChainError("Not pending transactions to confirm")
 
+        if Utils.is_power_of_two(len(self.unconfirmed_transactions)):
+            pass
+        elif Utils.is_power_of_two(len(self.unconfirmed_transactions) + 1):
+            # Append a copy of last transaction to make it power of 2
+            self.unconfirmed_transactions = self.unconfirmed_transactions[-1]
+        else:
+            raise BlockChainError(
+                "Unconfirmed transactions are not power of 2")
+
         unconfirmed_transactions_serialized = [
             json.loads(unconfirmed.transaction) for unconfirmed in self.unconfirmed_transactions]
 
+        unconfirmed_transactions_raw = [
+            unconfirmed.transaction for unconfirmed in self.unconfirmed_transactions
+        ]
+
+        computed_merkle_tree = Hashing.build_merkle_tree(
+            unconfirmed_transactions_raw)
+
         last_block = self.chain_last_block
+        last_block_no_hash = copy.deepcopy(last_block)
+        delattr(last_block_no_hash, "hash")
+
         # pylint: disable=maybe-no-member
         new_block = Block(index=last_block.index + 1,
                           transactions=unconfirmed_transactions_serialized,
                           timestamp=time.time(),
-                          previous_hash=last_block.hash)
+                          previous_hash=Hashing.compute_sha256_hash(
+                              last_block_no_hash.get_block()),
+                          merkle_root=computed_merkle_tree.get_merkle_root()
+                          )
 
         proof_of_work = self.proof_of_work(new_block)
         self.add_block(new_block, proof_of_work)
         self.unconfirmed_transactions_reset
+
         return new_block.index
 
     def check_chain_validity(self, chain):
@@ -173,9 +198,18 @@ class Blockchain:
             chain_len = remote_chain.get("length")
             chain_data = remote_chain.get("chain")
 
-            if chain_len > current_len and self.check_chain_validity(chain_data):
-                current_len = chain_len
-                longest_chain = chain_data
+            # Calculate chain integrity
+            if chain_len > current_len:
+
+                if self.check_chain_validity(chain_data):
+                    current_len = chain_len
+                    longest_chain = chain_data
+
+                else:
+                    # This remote chain is tempered, should notify and force a re_sync for remote
+                    # or add to non trusted nodes (nop)
+                    # TODO
+                    pass
 
         if longest_chain is not None:
             self.chain = longest_chain
@@ -199,7 +233,8 @@ class Blockchain:
                 block_data.get("transactions"),
                 block_data.get("timestamp"),
                 block_data.get("previous_hash"),
-                block_data.get("nonce")
+                block_data.get("nonce"),
+                block_data.get("merkle_root")
             )
             proof = block_data.get("hash")
 
