@@ -385,8 +385,8 @@ class Blockchain:
         for registered_node in self.nodes:
 
             if registered_node.get_node_info() == new_node.get_node_info():
-
-                raise NodeError("Already Registered")
+                # TODO Check that0
+                return None
 
         self.nodes.add(new_node)
 
