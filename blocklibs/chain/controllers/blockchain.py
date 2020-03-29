@@ -7,12 +7,13 @@ import requests
 from flask import request
 from merkletools import MerkleTools
 
-from blocklibs.chain.block import Block
+from blocklibs.chain.controllers.block import Block
 from blocklibs.chain.errors import (ApiResponse, BlockChainError, HttpErrors,
                                     NodeError)
-from blocklibs.chain.node import Node
+from blocklibs.chain.controllers.node import Node
 from blocklibs.chain.utils import Utils
 from blocklibs.crypto.hashing import Hashing
+
 
 max_request_retry = 3
 
