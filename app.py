@@ -2,12 +2,11 @@ import json
 import sys
 import time
 from http import HTTPStatus as code
-from waitress import serve
 
 import requests
 from flask import Flask, request
 from flask_restplus import Api, Resource, fields, reqparse
-from requests.exceptions import ConnectionError
+from waitress import serve
 
 from blocklibs.chain.block import Block
 from blocklibs.chain.blockchain import Blockchain
