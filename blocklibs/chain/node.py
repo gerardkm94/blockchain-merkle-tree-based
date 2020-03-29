@@ -15,6 +15,12 @@ class Node():
         self._node_address = node_address
         self._node_name = node_name
 
+    def __eq__(self, other):
+        return (self.get_node_info() == other.get_node_info())
+
+    def __hash__(self):
+        return hash(self._node_address + self._node_name)
+
     def get_node_info(self):
         node = json.dumps(self.__dict__, sort_keys=True)
         return node

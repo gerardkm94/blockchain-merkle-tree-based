@@ -1,21 +1,26 @@
 import json
-import time
-import requests
 import sys
+import time
 from http import HTTPStatus as code
+from waitress import serve
 
+import requests
 from flask import Flask, request
 from flask_restplus import Api, Resource, fields, reqparse
 from requests.exceptions import ConnectionError
 
+from blocklibs.chain.block import Block
 from blocklibs.chain.blockchain import Blockchain
-from blocklibs.chain.errors import ApiResponse, BlockChainError, HttpErrors, NodeError
+from blocklibs.chain.errors import (ApiResponse, BlockChainError, HttpErrors,
+                                    NodeError)
 from blocklibs.chain.node import Node
 from blocklibs.chain.transaction import Transaction
-from blocklibs.chain.block import Block
+from blocklibs.crypto.hashing import Hashing
 
 app = Flask(__name__)
 api = Api(app)
+
+
 block_chain = Blockchain()
 api_response = ApiResponse()
 
@@ -34,6 +39,12 @@ transaction_resource_fields = api.model('Transaction',  {
 },
 )
 
+transaction_validator_resource_fields = api.model('TransactionValidator',  {
+    'transaction_index': fields.Integer,
+    'merkle_root': fields.String,
+},
+)
+
 node_sync_resource_fields = api.model('Node',  {
     'node_address': fields.Url},
 )
@@ -48,7 +59,16 @@ node_register_resource_fields = api.model('RegisterNode',  {
     'node_name': fields.String, },
 )
 
+
 block_resource_fields = api.model('Block', {})
+block_tamper_resource_fields = api.model(
+    'BlockTamper', {
+        'author': fields.String,
+        'content': fields.String,
+        'block_index': fields.Integer,
+        'transaction_index': fields.Integer,
+    }
+)
 
 
 @api_transactions.route('/unconfirmed')
@@ -84,6 +104,37 @@ class Transactions(Resource):
 
         message = "Transaction added, pending to validate "
         return api_response.raise_response(message, code.CREATED)
+
+
+@api_transactions.route('/validator')
+class TransactionValidator(Resource):
+
+    @api_transactions.expect(transaction_validator_resource_fields)
+    def post(self):
+        """
+        Receives a Hashed Transaction and its merkle Root and returns a 
+        its merkle_proof.
+        """
+        incoming_transaction = request.get_json()
+        try:
+            transaction_index = incoming_transaction.get("transaction_index")
+            merkle_root = incoming_transaction.get("merkle_root")
+
+            transactions = block_chain.get_transactions_by_merkle_root(
+                merkle_root)
+
+            if transactions:
+                merkle_proof = Hashing.compute_merkle_proof(
+                    transactions, transaction_index)
+
+                return api_response.raise_response(json.dumps(merkle_proof), code.CREATED)
+
+        except Exception:
+            message = "Input data is not valid, please, check it"
+            return api_response.raise_response(message, code.BAD_REQUEST)
+
+        message = "Not transactions found by this merkle root"
+        return api_response.raise_response(message, code.NOT_FOUND)
 
 
 @api_transactions.route('/mine')
@@ -142,6 +193,30 @@ class Blocks(Resource):
         return api_response.raise_response(message, code.CREATED)
 
 
+@api_block.route('/tamper')
+class BlockTamper(Resource):
+
+    @api_nodes.expect(block_tamper_resource_fields)
+    def post(self):
+        """
+        A new node to simulate a Blockchain tampering.
+        """
+        try:
+            fake_author = request.get_json()["author"]
+            fake_content = request.get_json()["content"]
+            block_index = request.get_json()["block_index"]
+            transaction_index = request.get_json()["transaction_index"]
+
+            block_chain.chain[block_index].transactions[transaction_index]["author"] = fake_author
+            block_chain.chain[block_index].transactions[transaction_index]["content"] = fake_content
+
+        except AttributeError:
+            message = "Transaction not found"
+            return api_response.raise_response(message, code.BAD_REQUEST)
+
+        return f"Transaction {transaction_index} of Block {block_index} Tampered!", code.CREATED
+
+
 @api_nodes.route('/chain')
 class Chain(Resource):
 
@@ -154,6 +229,33 @@ class Chain(Resource):
 
         except NodeError as name_error:
             return api_response.raise_response(str(name_error), 500)
+
+
+@api_nodes.route('/trustable')
+class Trustable(Resource):
+
+    def get(self):
+        """
+        Get the current status of the Node (Trustable or not)
+        """
+        is_trustable = block_chain.is_trustable()
+
+        if isinstance(is_trustable, str):
+            return is_trustable
+        elif is_trustable:
+            return "Your chain is okay! You're good to go!", 200
+        else:
+            return "Your chain has been tampered :(, please, re-sync to a trusted node!", 200
+
+
+@api_nodes.route('/vote')
+class Voting(Resource):
+    def get(self):
+        """
+        Vote the chain as not trustable
+        """
+        block_chain.votes = 1
+        return "Voted as not trustable!", 200
 
 
 @api_nodes.route('/set_name')
@@ -225,10 +327,11 @@ class RegisterNode(Resource):
 
             try:
                 received_block_chain = block_chain.chain_builder(
-                    remote_node_info.get('chain')
+                    remote_node_info
                 )
 
             except BlockChainError as bc_error:
+                requests.get(f"{node_address}/Nodes/vote")
                 return api_response.raise_response(str(bc_error), code.METHOD_NOT_ALLOWED)
 
             else:
@@ -260,4 +363,6 @@ class RegisterNode(Resource):
 # https://flask.palletsprojects.com/en/1.1.x/tutorial/deploy/
 # It works wen is run with python instead of flask run
 if __name__ == '__main__':
-    app.run(debug=False, port=sys.argv[1])
+    # app.run(debug=False, port=sys.argv[1])
+    # Serving with waitress
+    serve(app, host='0.0.0.0', port=sys.argv[1])
