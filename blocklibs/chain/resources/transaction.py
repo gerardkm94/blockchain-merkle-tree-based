@@ -1,30 +1,18 @@
-from blocklibs.crypto.hashing import Hashing
-from blocklibs.chain.errors import BlockChainError
-from blocklibs.chain.controllers.transaction import Transaction
 import json
 import time
 from http import HTTPStatus as code
 
 from flask import request
-from flask_restplus import Resource, Namespace, fields
+from flask_restplus import Namespace, Resource, fields
 
-from blocklibs import api_response
 from blocklibs import block_chain
-
-api_transactions = Namespace(
-    'Transactions', description='Transactions operations')
-
-transaction_resource_fields = api_transactions.model('Transaction',  {
-    'author': fields.String,
-    'content': fields.String,
-},
-)
-
-transaction_validator_resource_fields = api_transactions.model('TransactionValidator',  {
-    'transaction_index': fields.Integer,
-    'merkle_root': fields.String,
-},
-)
+from blocklibs.chain.controllers.transaction import Transaction
+from blocklibs.chain.errors import ApiResponse as api_response
+from blocklibs.chain.errors import BlockChainError
+from blocklibs.chain.models.transaction import (
+    api_transactions, transaction_resource_fields,
+    transaction_validator_resource_fields)
+from blocklibs.crypto.hashing import Hashing
 
 
 @api_transactions.route('/unconfirmed')

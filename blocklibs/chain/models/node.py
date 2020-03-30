@@ -1,5 +1,7 @@
-from blockchain.app import api_nodes
-from flask_restplus import fields
+from flask_restplus import fields, Namespace
+
+api_nodes = Namespace(
+    'Nodes', description='Nodes operations')
 
 node_sync_resource_fields = api_nodes.model('Node',  {
     'node_address': fields.Url},

@@ -1,5 +1,3 @@
-
-
 class Utils:
     """
     Class to handle all the util operations

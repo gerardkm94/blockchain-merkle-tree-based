@@ -47,6 +47,6 @@ class ApiResponse():
     """
     Class to normalize the raised errors
     """
-
-    def raise_response(self, message, code):
+    @classmethod
+    def raise_response(cls, message, code):
         return {'message': str(message)}, code

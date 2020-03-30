@@ -1,5 +1,7 @@
-from blockchain.app import api_block
-from flask_restplus import fields
+from flask_restplus import fields, Namespace
+
+api_block = Namespace(
+    'Block', description='Block Operations')
 
 block_resource_fields = api_block.model('Block', {})
 

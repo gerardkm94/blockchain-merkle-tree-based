@@ -8,12 +8,11 @@ from flask import request
 from merkletools import MerkleTools
 
 from blocklibs.chain.controllers.block import Block
+from blocklibs.chain.controllers.node import Node
 from blocklibs.chain.errors import (ApiResponse, BlockChainError, HttpErrors,
                                     NodeError)
-from blocklibs.chain.controllers.node import Node
 from blocklibs.chain.utils import Utils
 from blocklibs.crypto.hashing import Hashing
-
 
 max_request_retry = 3
 
@@ -25,9 +24,6 @@ class Blockchain:
 
     This class should be instantiated as soon as the node is set up since it will be
     the core of the applications, storing and managing all the blockchain operations.
-
-    Parameters:
-    difficulty (int): Difficulty level of the blockchain.
     """
 
     def __init__(self):
