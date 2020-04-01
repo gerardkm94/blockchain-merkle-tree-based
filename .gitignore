@@ -24,7 +24,9 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
- 
+pymerkletools/
+pymerkletools
+/pymerkletools
 .idea
 
 # PyInstaller

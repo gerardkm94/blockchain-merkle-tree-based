@@ -369,7 +369,8 @@ class Blockchain:
         This method publish _self_node to the specified node address list.
         """
         post_data = {
-            'node_address': request.host_url.rstrip('/'),
+            # 'node_address': request.host_url.rstrip('/'),
+            'node_address': f"http://{ self.self_node_identifier.node_name }:5000",
             'node_name': self.self_node_identifier.node_name
         }
         headers = {'Content-Type': "application/json"}

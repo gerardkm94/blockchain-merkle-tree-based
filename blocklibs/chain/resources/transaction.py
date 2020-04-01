@@ -53,7 +53,7 @@ class Transactions(Resource):
 @api_transactions.route('/validator')
 class TransactionValidator(Resource):
 
-    @api_transactions.expect()
+    @api_transactions.expect(transaction_validator_resource_fields)
     def post(self):
         """
         Receives a Hashed Transaction and its merkle Root and returns a

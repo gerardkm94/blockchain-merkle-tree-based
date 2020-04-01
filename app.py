@@ -9,4 +9,5 @@ app = Flask(__name__)
 api.init_app(app)
 
 if __name__ == '__main__':
-    serve(app, host='127.0.0.1', port=sys.argv[1])
+    app.run(debug=False, host='0.0.0.0', port=int("5000"))
+    # serve(app,  host='0.0.0.0', port=5000)

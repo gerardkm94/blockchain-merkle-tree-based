@@ -13,7 +13,6 @@ Jinja2==2.10.3
 jsonschema==3.1.1
 lazy-object-proxy==1.4.3
 MarkupSafe==1.1.1
-merkletools==1.0.3
 mccabe==0.6.1
 requests==2.23.0
 more-itertools==7.2.0
