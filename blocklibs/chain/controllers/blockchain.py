@@ -23,7 +23,8 @@ class Blockchain:
     the structured data regarding a Blockchain instance.
 
     This class should be instantiated as soon as the node is set up since it will be
-    the core of the applications, storing and managing all the blockchain operations.
+    the core of the application, storing and managing all the blockchain operations for a 
+    single node.
     """
 
     def __init__(self):
@@ -33,6 +34,9 @@ class Blockchain:
         unconfirmed_transactions (list): Transactions stored, but pending to confirm.
         chain (list): List of blocks (Block) objects, conforming the whole chain.
         nodes (set): Contains all the nodes that are contributing to the blockchain.
+        self_node_identifier (Node): Own node identifier information.
+        trustable(Boolean): Determine if a node is trustable or not.
+        votes(int): Received votes to determine if a node is not trustable.
 
 
         """
@@ -89,9 +93,10 @@ class Blockchain:
         Returns:
         Boolean, True if all conditions are met.
         """
+        hash_start_with = block_hash.startswith('0' * self._difficulty)
+        new_hash = Hashing.compute_sha256_hash(block.get_block())
 
-        return (block_hash.startswith('0' * self._difficulty)
-                and block_hash == Hashing.compute_sha256_hash(block.get_block()))
+        return (hash_start_with and block_hash == new_hash)
 
     def add_block(self, block, proof_of_work):
         """
@@ -115,11 +120,13 @@ class Blockchain:
 
         block.hash = proof_of_work
         self.chain.append(block)
+
         return True
 
     def compute_transactions(self):
         """
-        Add unconfirmed transactions to the blockchain
+        Add unconfirmed transactions to the blockchain. Only Power of 2 transactions are allowed
+        to meet Merkle Tree efficiency requirements.
 
         Returns:
         new_block.index (int): The Index of the added block.
@@ -129,9 +136,11 @@ class Blockchain:
 
         if Utils.is_power_of_two(len(self.unconfirmed_transactions)):
             pass
+
         elif Utils.is_power_of_two(len(self.unconfirmed_transactions) + 1):
             # Append a copy of last transaction to make it power of 2
             self.unconfirmed_transactions = self.unconfirmed_transactions[-1]
+
         else:
             raise BlockChainError(
                 "Unconfirmed transactions are not power of 2")
@@ -163,6 +172,14 @@ class Blockchain:
 
     def check_invalid_transactions(self, merkle_root, transactions, remote_node):
         """
+        Find for a detected list of invalid transactions which of them are not valid, and
+        which have been tampered. 
+
+        To do so, ask to every node in the network for the merkle proof of the suspicious
+        transactions. When the merkle proof is received, check if is valid validating it 
+        against the merkle_root of the own node.
+
+        Returns a list containing this invalid transactions.
         """
         invalid_transactions = []
 
@@ -191,8 +208,14 @@ class Blockchain:
         return invalid_transactions
 
     def validate_transaction(self, index_transaction, merkle_root, remote_node):
+        """
+        For a given transaction, ask to all the available nodes for its merkle proof. 
+        This merkle proof is not requested to the node which has been triggered this request.
 
-        # Getting nodes withour remote unnecessary
+        Returns: 
+        merkle_proof: Object containing the requested merkle proof for a given transaction.
+
+        """
         remote_node = Node(remote_node.get('_node_address'),
                            remote_node.get('_node_name'))
 
@@ -218,6 +241,7 @@ class Blockchain:
 
                     if response.status_code == 201:
                         break
+
             except:
                 return "Can't validate, no nodes available"
 
@@ -228,7 +252,7 @@ class Blockchain:
 
     def check_chain_validity(self, chain):
         """
-        A helper method to check if the blockchain is valid.            
+        A helper method to check if the blockchain is valid.          
         """
         result = True
         previous_hash = "0"
@@ -250,7 +274,12 @@ class Blockchain:
 
     def consensus(self):
         """
-        Consensus Algorithm. If a longer chain is found, it will be replaced with it.
+        Consensus Algorithm. If a longer chain is found, it will be replaced with it. This method
+        should be called when a new operation to the node (adding blocks) want to be performed.
+
+        This will ensure that the node is updated to the last chain version regarding the
+        rest of the nodes of the network. If a biggest and consisten chain is found, the node
+        will be updated and then, operations could be executed to keep growing the chain.
         """
 
         longest_chain = None
@@ -265,13 +294,16 @@ class Blockchain:
             if chain_len > current_len:
 
                 if self.check_chain_validity(chain_data):
+                    # TODO REPLACE FOR CHAIN BUILDER??
                     current_len = chain_len
                     longest_chain = chain_data
 
                 else:
                     # This remote chain is tempered, should notify and force a re_sync for remote
                     # or add to non trusted nodes (nop)
-                    # TODO
+                    # TODO CREATE METHOD to vote for a bad request. Notify here if for this node
+                    # the chain couldn't not be validated!
+
                     pass
 
         if longest_chain is not None:
@@ -369,8 +401,7 @@ class Blockchain:
         This method publish _self_node to the specified node address list.
         """
         post_data = {
-            # 'node_address': request.host_url.rstrip('/'),
-            'node_address': f"http://{ self.self_node_identifier.node_name }:5000",
+            'node_address': request.host_url.rstrip('/'),
             'node_name': self.self_node_identifier.node_name
         }
         headers = {'Content-Type': "application/json"}

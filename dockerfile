@@ -4,7 +4,7 @@ COPY . /blockchain
 
 WORKDIR /blockchain
 
-RUN pip install ./pymerkletools
+RUN pip install .\pymerkletools
 
 RUN pip install -r requirements.txt
 

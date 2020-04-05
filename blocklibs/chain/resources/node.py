@@ -65,13 +65,8 @@ class NodeName(Resource):
         Add a name to the current node instance
         """
         try:
-            # Non docker implementation
-            # block_chain.self_node_identifier = Node(
-            #     request.host_url.rstrip('/'), request.json.get('node_name')
-            # )
-            node_name = request.json.get('node_name')
             block_chain.self_node_identifier = Node(
-                f"http://{node_name}:5000", node_name
+                request.host_url.rstrip('/'), request.json.get('node_name')
             )
 
         except:
