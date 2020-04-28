@@ -1,6 +1,10 @@
--- 01/03 
-He añadido la mayoría de endpoints, falta por implementar el mecanismo que avisa al resto
-de nodos cuando una transaccion ha sido introducida. 
-Revisar los metodos y el funcionamiento de como se validan las cadenas ajenas y si estoy 
-enviando los objetos de cadenas correctamente para ser validados.
-Hacer una prueba general.
+--
+Parece que el método de minado y sync funciona bien, añadiendo el build_chain para homogeneizar código.
+Falta probar que pasa si intentamos sincronizar una chain trampeada, tanto en syncup como en minado, si funciona
+estamos okey.
+
+Ver que pasa en la publicacion de nodos general, porque antes hubo un error. No se propagó a todas
+
+
+REcalcular el hash en el proceso de minado antes de hacer mine, para enviar así el previous hash y que sirva de deteccion
+o sustitur el hash por el __hash__ del propio objeto,  asi se recalculara automaticamente

@@ -10,6 +10,9 @@ from blocklibs.chain.errors import HttpErrors, NodeError, SerializeNodeError
 
 
 class Node():
+    """
+   Cclass to handle the data structure and associated methods of the nodes.
+    """
 
     def __init__(self, node_address, node_name):
         self._node_address = node_address
@@ -31,7 +34,7 @@ class Node():
         """
         try:
             response = requests.get(
-                '{}Nodes/chain'.format(self._node_address))
+                '{}/Nodes/chain'.format(self._node_address))
         except ConnectionError:
             message = "Can't get remote chain"
             raise HttpErrors(message)

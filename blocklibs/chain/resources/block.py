@@ -1,15 +1,11 @@
-import json
-import time
 from http import HTTPStatus as code
 
-import requests
 from flask import request
-from flask_restplus import Namespace, Resource
+from flask_restplus import Resource
 
 from blocklibs import block_chain
 from blocklibs.chain.controllers.block import Block
 from blocklibs.chain.errors import ApiResponse as api_response
-from blocklibs.chain.errors import BlockChainError, HttpErrors, NodeError
 from blocklibs.chain.models.block import (api_block, block_resource_fields,
                                           block_tamper_resource_fields)
 

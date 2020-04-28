@@ -1,10 +1,8 @@
-import json
-import time
 from http import HTTPStatus as code
 
 import requests
 from flask import request
-from flask_restplus import Namespace, Resource
+from flask_restplus import Resource
 
 from blocklibs import block_chain
 from blocklibs.chain.controllers.node import Node
@@ -29,19 +27,16 @@ class Chain(Resource):
             return api_response.raise_response(str(name_error), 500)
 
 
-@api_nodes.route('/trustable')
-class Trustable(Resource):
+@api_nodes.route('/Trustworthy')
+class Trustworthy(Resource):
 
     def get(self):
         """
         Get the current status of the Node (Trustable or not)
         """
-        is_trustable = block_chain.is_trustable()
-
-        if isinstance(is_trustable, str):
-            return is_trustable
-        elif is_trustable:
+        if block_chain.is_trusworthy():
             return "Your chain is okay! You're good to go!", 200
+
         else:
             return "Your chain has been tampered :(, please, re-sync to a trusted node!", 200
 
@@ -50,10 +45,24 @@ class Trustable(Resource):
 class Voting(Resource):
     def get(self):
         """
-        Vote the chain as not trustable
+        Vote the chain as not trustworthy
         """
-        block_chain.votes = 1
-        return "Voted as not trustable!", 200
+        block_chain.add_vote
+        return "Voted as not trustworthy!", 200
+
+
+@api_nodes.route('/validate')
+class Validate(Resource):
+    def get(self):
+        """
+        Validate the own node, to check if still being trustworthy
+        """
+        if block_chain.chain_validator():
+            return "Chain still being trustworthy", 200
+
+        else:
+            block_chain.add_vote
+            return "Chain not trustworthy! Following transactions have been tampered: ", 200
 
 
 @api_nodes.route('/set_name')
@@ -150,6 +159,7 @@ class RegisterNode(Resource):
                 block_chain.nodes_update = Node.serialize_nodes(
                     [remote_node_info.get('node_identifier')],
                     block_chain.self_node_identifier.get_node_info())
+                block_chain.reset_votes
 
                 return api_response.raise_response("Registration successful", 201)
 

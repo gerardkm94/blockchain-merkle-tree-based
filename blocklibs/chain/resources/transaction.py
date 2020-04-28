@@ -3,7 +3,7 @@ import time
 from http import HTTPStatus as code
 
 from flask import request
-from flask_restplus import Namespace, Resource, fields
+from flask_restplus import Resource
 
 from blocklibs import block_chain
 from blocklibs.chain.controllers.transaction import Transaction
@@ -93,7 +93,14 @@ class UnconfirmedTransactions(Resource):
         """
         try:
             is_chain_updated = block_chain.consensus()
-            result = block_chain.compute_transactions()
+
+            if block_chain.is_trustworthy():
+                result = block_chain.compute_transactions()
+
+            else:
+                message = "The chain is not trustworthy, please, re-sync first"
+                return api_response.raise_response(message, 400)
+
         except BlockChainError:
             message = "No unconfirmed transactions to mine"
             return api_response.raise_response(message, 200)

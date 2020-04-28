@@ -96,7 +96,7 @@ class Blockchain:
         hash_start_with = block_hash.startswith('0' * self._difficulty)
         new_hash = Hashing.compute_sha256_hash(block.get_block())
 
-        return (hash_start_with and block_hash == new_hash)
+        return hash_start_with and block_hash == new_hash
 
     def add_block(self, block, proof_of_work):
         """
@@ -151,6 +151,7 @@ class Blockchain:
         computed_merkle_tree = Hashing.build_merkle_tree(
             unconfirmed_transactions_serialized)
 
+        # Recalculate all the chain hassh to obtain last block hash real time calculated
         last_block = self.chain_last_block
         last_block_no_hash = copy.deepcopy(last_block)
         delattr(last_block_no_hash, "hash")
@@ -250,6 +251,7 @@ class Blockchain:
 
             return merkle_proof
 
+    # TODO Remove when tested
     def check_chain_validity(self, chain):
         """
         A helper method to check if the blockchain is valid.          
@@ -288,41 +290,52 @@ class Blockchain:
         for node in self.nodes:
             remote_chain = node.get_remote_chain()
             chain_len = remote_chain.get("length")
-            chain_data = remote_chain.get("chain")
 
             # Calculate chain integrity
             if chain_len > current_len:
 
-                if self.check_chain_validity(chain_data):
-                    # TODO REPLACE FOR CHAIN BUILDER??
-                    current_len = chain_len
-                    longest_chain = chain_data
+                try:
+                    received_block_chain = self.chain_builder(
+                        remote_chain
+                    )
+
+                except BlockChainError as bc_error:
+                    requests.get(f"{node.node_address}/Nodes/vote")
 
                 else:
-                    # This remote chain is tempered, should notify and force a re_sync for remote
-                    # or add to non trusted nodes (nop)
-                    # TODO CREATE METHOD to vote for a bad request. Notify here if for this node
-                    # the chain couldn't not be validated!
-
-                    pass
+                    current_len = chain_len
+                    longest_chain = received_block_chain
 
         if longest_chain is not None:
-            self.chain = longest_chain
+            self.chain = longest_chain.chain
             print("Consensus achieved, longer chain found")
             return True
 
         return False
+
+    def chain_validator(self):
+        """
+        :returns True if own chain is valid, false if not.
+        """
+        try:
+            self.chain_builder(self.chain_local_info)
+
+        except BlockChainError:
+            return False
+
+        else:
+            return True
 
     def chain_builder(self, chain_info):
         """
         This method creates a new Blockchain instance from a 
         remote instance or dump.
         """
-        block_chain = Blockchain()
-        new_chain = chain_info.get('chain')
-        remote_node = json.loads(chain_info.get('node_identifier'))
+        block_chain = Blockchain()  # New blockchain instance is invoked
+        new_chain = chain_info.get('chain')  # Get the chain pending to validate
+        remote_node = json.loads(chain_info.get('node_identifier')) # Get chain origin node information
 
-        for block_data in new_chain:
+        for block_data in new_chain:  # Iterates the new chain and creates new Block instances of received data
             block_data = json.loads(block_data)
             block = Block(
                 block_data.get("index"),
@@ -334,24 +347,25 @@ class Blockchain:
             )
             proof = block_data.get("hash")
 
-            if block_data.get("index") > 0:
-                is_block_added = block_chain.add_block(block, proof)
+            if block_data.get("index") > 0:  # Genesis block is directly added to the chain
+                is_block_added = block_chain.add_block(block, proof)  # Determines if a block should or not be added
 
-                if not is_block_added:
+                if not is_block_added:  # Block has been tampered or is not trustworthy
                     tampered_transactions = []
-                    transactions = block.transactions
+                    transactions = block.transactions  # Get the transactions of the suspicious block
                     tampered_transactions = self.check_invalid_transactions(
-                        block.merkle_root, transactions, remote_node)
+                        block.merkle_root, transactions, remote_node)  # Check invalid transactions and compare
+                    # with other nodes through merkle_proof validations.
 
-                    if not tampered_transactions:
+                    if not tampered_transactions:  # Last block is not valid, couldn't be added
                         raise BlockChainError(
                             "The chain is tampered, can't be added, previous hash differ")
-                    else:
+                    else:  # The tampered transactions has been detected and returned
                         message = f"""Te chain is tampered, the following transactions 
                             couldn't be validated: {str(tampered_transactions)}"""
                         raise BlockChainError(message)
 
-        return block_chain
+        return block_chain  # If all is okay and no transactions are tempered, the new blockchain is returned
 
     def publish_new_block(self):
         """
@@ -363,13 +377,13 @@ class Blockchain:
         failed_nodes = []
 
         for node in self.nodes:
-            url = f"{node.node_address}Block/add"
+            url = f"{node.node_address}/Block/add"
             # pylint: disable=maybe-no-member
             data = self.chain_last_block.get_block()
             headers = {'Content-Type': "application/json"}
 
             try:
-                for _ in range(0, 100):
+                for _ in range(0, 3):
                     response = requests.post(
                         url,
                         data=data,
@@ -543,13 +557,17 @@ class Blockchain:
     def votes(self):
         return self._votes
 
-    @votes.setter
-    def votes(self, vote):
+    @property
+    def add_vote(self):
         self._votes = self._votes + 1
 
-    def is_trustable(self):
+    @property
+    def reset_votes(self):
+        self._votes = 0
+
+    def is_trustworthy(self):
         """
-        Return either the chain is trustable if more than the 50% of the nodes
+        Return either the chain is trustworthy if more than the 50% of the nodes
         agree on that. 
         """
         if len(self.nodes) > 0:
@@ -559,4 +577,7 @@ class Blockchain:
             else:
                 return True
         else:
-            return "I don't know, add nodes to compare with!"
+            if self.votes == 1:
+                return False
+            else:
+                return True
